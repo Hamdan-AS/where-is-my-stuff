@@ -2,7 +2,7 @@
 
 Reference for the lost-and-found Report entity and the machinery around it. Describes the code as it stands today, after the Leaflet and OpenStreetMap picker replaced the dormant Google Maps one.
 
-Verified against `core/models.py`, `core/forms.py`, `core/views.py`, `core/services.py`, `core/qr.py`, `config/settings.py`, `config/urls.py`, all templates, `static/app.js`, and the three test classes in `core/tests.py`. The suite is over 47 tests; no migration drift.
+Verified against `core/models.py`, `core/forms.py`, `core/views.py`, `core/services.py`, `core/qr.py`, `config/settings.py`, `config/urls.py`, all templates, `static/app.js`, and the three test classes in `core/tests.py`. `manage.py test core` discovers 65 test methods: 46 here, 17 in `core/test_screening.py`, 2 in `core/test_browser.py`. No migration drift.
 
 ## 1. The Report model
 

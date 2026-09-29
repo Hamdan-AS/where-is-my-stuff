@@ -31,7 +31,7 @@ and the current docs for anything load-bearing.
 | Staff moderation (Close / Remove) | ✅ | Audited, no admin UI for reports |
 | Dashboard (stats, matches needing action, 3 open reports) | ✅ | Match-first, drafts inline |
 | Report history with search/filter/pagination | ✅ | |
-| Unit and browser tests passing | ✅ | Over 47 unit tests, plus 2 browser tests |
+| Unit and browser tests passing | ✅ | 65 test methods; 63 run without Playwright, 65 with it |
 | System check clean, no migration drift | ✅ | |
 
 ---
@@ -193,7 +193,7 @@ X_FRAME_OPTIONS = "DENY"
 | `AGENTS.md`, `README.md`, `LOCALHOST-COMMANDS.txt`, `TODO-INCREMENTAL.md` | Test command `core.tests` → `core`, so `core/test_screening.py` actually runs. | done |
 | 13 CS-326 documents | Moved to `docs/cs326-legacy/` with a README. They describe the deleted PHP implementation. | done |
 | `report-structure.md`, `osm-integration-guide.md` | Both documented the tile host as `tile.openstreetmap.org` at `maxZoom: 19`. The code uses `tile.openstreetmap.de` at 18, and `.org` 403s every tile. | done |
-| Test counts | 39 and 42 in different files, neither counting the screening module. Settled at over 47. | done |
+| Test counts | 39 and 42 in different files, neither counting the screening module. Counted properly from the source: 65 methods, 46 + 17 + 2. | done |
 
 ---
 

@@ -2,7 +2,7 @@
 
 Reflects the current implementation: 5-step wizard, Leaflet + OpenStreetMap location picker, one `wizard()` view serving all steps. GPS (browser Geolocation API) is one of three ways to set `Report.lat/lng`. All three write to the same fields, no separate GPS columns, so the Report data model stays single-source-of-truth for location.
 
-Checked against the source on 26-09-2026. Boxes marked `[x]` are implemented and verified by reading the code, by `manage.py check`, and by the test suite (`manage.py test core`, over 47 tests).
+Checked against the source on 26-09-2026. Boxes marked `[x]` are implemented and verified by reading the code, by `manage.py check`, and by `manage.py test core`, which discovers 65 test methods across `core/tests.py`, `core/test_screening.py`, and `core/test_browser.py`.
 
 ## Entry point
 

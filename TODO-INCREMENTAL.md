@@ -88,12 +88,28 @@ Status: pending.
 
 - Django system check passes.
 - Migration drift check passes with no new migration required.
-- Unit tests pass with `.venv/bin/python manage.py test core`. Use `core`, not
+- Run tests with `.venv/bin/python manage.py test core`. Use `core`, not
   `core.tests`: the narrow form matches only `core/tests.py` and silently skips
-  `core/test_screening.py`. Over 47 tests in total, counting all three modules.
-- 2 browser tests pass with `.venv/bin/python manage.py test core.test_browser`.
+  `core/test_screening.py`.
+- **Test count, 65 methods across 3 modules** (counted from the source, 29-09-2026):
+
+  | Module | Test methods | Classes | Skips |
+  |---|---|---|---|
+  | `core/tests.py` | 46 | 3 | none |
+  | `core/test_screening.py` | 17 | 6 | none |
+  | `core/test_browser.py` | 2 | 1 | both, unless Playwright is installed |
+  | **Total** | **65** | **10** | |
+
+  So a bare run is 63 passed and 2 skipped, and a run after
+  `pip install -r requirements-dev.txt` is 65 passed. Browser tests need permission to
+  bind a temporary localhost port in the sandbox.
+- The `subTest` sweeps expand into far more assertions at runtime than there are test
+  methods, 14 `subTest` call sites in `core/test_screening.py` alone. Django reports one
+  result per method, so the method count above is the number the runner prints.
+- The pass/fail claims in this section were inherited from earlier runs and were not
+  re-verified during the 29-09-2026 cleanup, which had no Python or Django available.
+  Re-run the suite to confirm.
 - Adversarial edge suite: 42 checks, 34 pass, 8 correctly blocked by design, 0 gaps.
-- Browser tests need permission to bind a temporary localhost port in the sandbox.
 
 ## Demo accounts
 

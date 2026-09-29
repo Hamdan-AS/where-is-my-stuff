@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Staff</span>
+    <h1>Report management</h1>
+    <p class="muted">Moderate active reports and maintain listings.</p>
+  </div>
+  {% if user.is_superuser %}
+    <a class="button secondary small" href="{% url 'admin:app_list' 'core' %}">User admin</a>
+  {% endif %}
+</div>
+
+{% for report in reports %}
+  <article class="panel report-summary">
+    <div class="card-head">
+      <div>
+        <span class="eyebrow">{{ report.display_id }}</span>
+        <h2>{{ report.title }}</h2>
+        <p class="muted">{{ report.kind }}. {{ report.category }}. {{ report.location }}. {{ report.event_date|date:"d-m-Y" }}</p>
+      </div>
+      <span class="badge {{ report.status|lower }}">{{ report.status }}</span>
+    </div>
+
+    <p>{{ report.description }}</p>
+
+    {% if report.status == 'Open' and not report.reserved %}
+      <form method="post" class="inline-actions">
+        {% csrf_token %}
+        <input type="hidden" name="report" value="{{ report.pk }}">
+        <button class="small secondary" name="action" value="close">Close</button>
+        <button class="small secondary danger" name="action" value="remove">Remove from listings</button>
+      </form>
+    {% endif %}
+  </article>
+{% empty %}
+  <div class="panel empty-state">
+    <p class="muted">No reports to manage.</p>
+  </div>
+{% endfor %}
+{% endblock %}

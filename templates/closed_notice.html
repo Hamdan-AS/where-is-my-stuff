@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<a class="back-link" href="{% url 'dashboard' %}">Back to dashboard</a>
+
+<section class="panel">
+  <div class="page-head">
+    <div>
+      <span class="eyebrow">Attention</span>
+      <h1>This report has already been resolved.</h1>
+    </div>
+  </div>
+  <p class="muted">The item has been returned or the report is no longer open. No further action is needed.</p>
+</section>
+{% endblock %}

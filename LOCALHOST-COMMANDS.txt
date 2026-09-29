@@ -1,0 +1,54 @@
+Where Is My Stuff? local commands
+
+Project folder:
+/home/elite/sandbox/where-is-my-stuff-python
+
+Local app URL:
+http://127.0.0.1:8085/
+
+Start the app:
+cd /home/elite/sandbox/where-is-my-stuff-python
+source .venv/bin/activate
+python manage.py migrate
+python manage.py runserver 127.0.0.1:8085
+
+Open the Django admin:
+http://127.0.0.1:8085/admin/
+
+Create an admin user:
+cd /home/elite/sandbox/where-is-my-stuff-python
+source .venv/bin/activate
+python manage.py createsuperuser
+
+Run basic checks:
+cd /home/elite/sandbox/where-is-my-stuff-python
+source .venv/bin/activate
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py migrate --check
+
+Run tests:
+cd /home/elite/sandbox/where-is-my-stuff-python
+source .venv/bin/activate
+python manage.py test core.tests
+python manage.py test
+
+Check what is using localhost ports:
+ss -ltnp
+
+Check only port 8085:
+ss -ltnp | grep ':8085'
+
+Stop the Django dev server:
+Press Ctrl+C in the terminal running runserver.
+
+If the server is running in the background, find it:
+ps -eo pid,ppid,stat,comm,args | grep 'manage.py runserver'
+
+Then stop only that process:
+kill <PID>
+
+Notes:
+- Use 127.0.0.1:8085 for this project.
+- Do not stop MySQL, Ollama, DNS, or printing services unless you are sure they belong to this app.
+- Browser tests start their own temporary localhost server.

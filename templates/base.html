@@ -1,0 +1,95 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Where Is My Stuff?</title>
+  <link rel="stylesheet" href="{% static 'app.css' %}?v=24">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% if user.is_authenticated %}app-body{% else %}public-body{% endif %}">
+  {% if user.is_authenticated %}
+    <div class="mobile-bar">
+      <button class="menu-button" type="button" data-sidebar-toggle aria-controls="app-sidebar" aria-expanded="false">Menu</button>
+      <a class="brand compact" href="{% url 'dashboard' %}">
+        <b class="logo">W</b>
+        <span>Where Is My Stuff?</span>
+      </a>
+    </div>
+
+    <div class="sidebar-backdrop" data-sidebar-close></div>
+
+    <div class="app-shell">
+      <aside class="sidebar" id="app-sidebar">
+        <a class="brand" href="{% url 'dashboard' %}">
+          <b class="logo">W</b>
+          <span>
+            Where Is My Stuff?
+            <small>Lost &amp; Found</small>
+          </span>
+        </a>
+
+        <nav class="side-nav" aria-label="Primary navigation">
+          {% if user.visible_report_count %}
+            <a class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">Dashboard</a>
+          {% endif %}
+          {% if user.visible_report_count > 1 %}
+            <a class="{% if request.resolver_match.url_name == 'reports' or request.resolver_match.url_name == 'report' %}active{% endif %}" href="{% url 'reports' %}">My reports</a>
+          {% endif %}
+          <a class="nav-create {% if request.resolver_match.url_name == 'create' or request.resolver_match.url_name == 'draft' %}active{% endif %}" href="{% url 'create' %}">Create report</a>
+          {% if user.is_staff %}
+            <a class="{% if request.resolver_match.url_name == 'management' %}active{% endif %}" href="{% url 'management' %}">Management</a>
+          {% endif %}
+        </nav>
+
+        <div class="sidebar-note">
+          <strong>Privacy</strong>
+          <small>Keep identifiers out of public descriptions.</small>
+        </div>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <div>
+            <span class="muted">Signed in</span>
+            <strong>{{ user.first_name|default:user.username }}</strong>
+          </div>
+          <div class="account-strip">
+            <span class="avatar" aria-hidden="true">{{ user.first_name|make_list|first|default:"U" }}</span>
+            <form method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button class="link" type="submit">Log out</button>
+            </form>
+          </div>
+        </header>
+
+        <main class="content">
+  {% else %}
+    <header class="public-header">
+      <a class="brand" href="{% url 'login' %}">
+        <b class="logo">W</b>
+        <span>
+          Where Is My Stuff?
+          <small>Lost &amp; Found</small>
+        </span>
+      </a>
+    </header>
+
+    <main class="public-main">
+  {% endif %}
+
+    {% for message in messages %}
+      <div class="notice" role="status">{{ message }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if user.is_authenticated %}
+      </div>
+    </div>
+  {% endif %}
+
+  <script src="{% static 'app.js' %}?v=17" defer></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">My reports</span><h1>Report history</h1><p class="muted">Find every lost or found item reported from this account.</p></div>
+  <a class="button" href="{% url 'create' %}">Create report</a>
+</div>
+
+<section class="panel">
+  <form method="get" class="report-filters">
+    <label>Search<input name="q" value="{{ search }}" placeholder="Title or location"></label>
+    <label>Type<select name="kind"><option value="">Lost and found</option><option value="Lost" {% if kind_filter == 'Lost' %}selected{% endif %}>Lost</option><option value="Found" {% if kind_filter == 'Found' %}selected{% endif %}>Found</option></select></label>
+    <label>Status<select name="status"><option value="">Every status</option><option value="Open" {% if status_filter == 'Open' %}selected{% endif %}>Open</option><option value="Returned" {% if status_filter == 'Returned' %}selected{% endif %}>Returned</option><option value="Closed" {% if status_filter == 'Closed' %}selected{% endif %}>Closed</option></select></label>
+    <button type="submit">Apply</button>
+  </form>
+
+  {% if page_obj %}
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>ID</th><th>Item</th><th>Type</th><th>Item date</th><th>Reported</th><th>Status</th><th></th></tr></thead>
+      <tbody>{% for report in page_obj %}<tr><td><code>{{ report.display_id }}</code></td><td><a class="table-title" href="{% url 'report' report.pk %}">{{ report.title }}</a></td><td>{{ report.kind }}</td><td>{{ report.event_date|date:"d-m-Y" }}</td><td>{{ report.created_at|date:"d-m-Y" }}</td><td><span class="badge {{ report.status|lower }}">{{ report.status }}</span></td><td><a href="{% url 'report' report.pk %}">View</a></td></tr>{% endfor %}</tbody>
+    </table></div>
+  {% else %}<div class="empty-state"><strong>No reports found</strong><p>Change the filters or create a report.</p></div>{% endif %}
+
+  {% if page_obj.paginator.num_pages > 1 %}<nav class="pagination" aria-label="Report pages">
+    {% if page_obj.has_previous %}<a href="?q={{ search|urlencode }}&kind={{ kind_filter }}&status={{ status_filter }}&page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?q={{ search|urlencode }}&kind={{ kind_filter }}&status={{ status_filter }}&page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+  </nav>{% endif %}
+</section>
+{% endblock %}

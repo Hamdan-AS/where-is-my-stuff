@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="panel wizard">
+  <div class="page-head tight">
+    <div>
+      <span class="eyebrow">Unfinished draft</span>
+      <h1>Continue or start new?</h1>
+      <p class="muted">Saved {{ draft.updated_at|date:"d M Y, H:i" }}{% if draft.data.title %}, titled "{{ draft.data.title }}"{% endif %}.</p>
+    </div>
+  </div>
+
+  <p class="muted">You already have an unfinished{% if draft.data.kind %} {{ draft.data.kind }}{% endif %} draft.</p>
+  <p>Do you want to continue the{% if draft.data.kind %} {{ draft.data.kind }}{% endif %} draft or fill a new one?</p>
+
+  <form method="post" action="{% url 'create' %}" class="actions">
+    {% csrf_token %}
+    <a class="button secondary" href="{% url 'draft' draft.pk %}">Continue the{% if draft.data.kind %} {{ draft.data.kind }}{% endif %} draft</a>
+    <button name="action" value="new">Fill a new one</button>
+  </form>
+</section>
+{% endblock %}

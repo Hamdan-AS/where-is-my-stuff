@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head %}
+  {% if step == 3 %}
+    <link rel="stylesheet" href="{% static 'leaflet.css' %}">
+    <script src="{% static 'leaflet.js' %}" defer></script>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Report an item</span>
+    <h1>{% if step == 1 %}What happened to your item?{% else %}Complete your report{% endif %}</h1>
+    <p class="muted">Tell us whether it was lost or found. We will check it against other reports.</p>
+  </div>
+  <small class="muted">Draft saved {{ draft.updated_at|date:"H:i" }}</small>
+</div>
+
+<section class="panel wizard">
+  <nav class="steps">
+    {% for number,label in steps %}
+      <a class="{% if step == number %}active{% elif step > number %}done{% endif %}" href="?step={{ number }}">
+        <b>{{ number }}</b>
+        <span>{{ label }}</span>
+      </a>
+    {% endfor %}
+  </nav>
+
+  <h2>{% if step == 1 %}1. Type and category{% elif step == 2 %}2. Item details{% elif step == 3 %}3. Location{% elif step == 4 %}4. Private matching details{% else %}5. Review your report{% endif %}</h2>
+
+  {% if step == 4 %}
+    <p class="muted">Private matching details are used only to compare similar reports and are never displayed publicly.</p>
+  {% endif %}
+
+  <form method="post" data-report-form>{% csrf_token %}
+    {% if form %}
+      {{ form.non_field_errors }}
+      {% for field in form %}
+        {% if field.name == 'lat' %}
+          <div class="field" data-coords-picker>
+            <div class="coords-map" data-coords-map></div>
+            <p class="coords-actions">
+              <button type="button" class="secondary small" id="use-current-location">Use my location</button>
+            </p>
+            <small class="muted" data-map-status>Click the map or drag the pin to set the exact spot.</small>
+          </div>
+        {% endif %}
+        <div class="field{% if field.errors %} has-error{% endif %}">
+          {{ field.label_tag }}
+          {{ field }}
+          {% if field.errors %}
+            <p class="field-error" role="alert">Invalid input. Please enter a correct value.</p>
+          {% endif %}
+          {% if field.help_text %}
+            <small>{{ field.help_text }}</small>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      {% if step == 2 %}
+        <p id="privacy-hint" role="status">Describe visible features. Keep identifiers and contact information private.</p>
+      {% endif %}
+
+      {% if step == 4 %}
+        <button class="secondary" name="action" value="refresh" formnovalidate>Update questions from my selections</button>
+        <p class="muted" id="selection-help">Questions change when contents, card count, or card type changes.</p>
+      {% endif %}
+
+    {% else %}
+      {% if duplicate %}
+        <p class="notice">A similar open report already exists in your account. Please check your dashboard before creating another.</p>
+      {% endif %}
+
+      <dl>
+        <dt>Report type</dt>
+        <dd>{{ data.kind }}. {{ data.category }}</dd>
+
+        <dt>Title</dt>
+        <dd>{{ data.title }}</dd>
+
+        <dt>Date</dt>
+        <dd>{{ display_date }}</dd>
+
+        <dt>Public description</dt>
+        <dd>{{ data.description }}</dd>
+
+        <dt>Location</dt>
+        <dd>{{ data.location }} ({{ data.location_detail }})</dd>
+      </dl>
+
+      <p class="muted">Private questionnaire is complete. Private answers are saved and not shown here.</p>
+      <p class="notice">Match scores indicate similarity. Report details lock once a handover is proposed.</p>
+    {% endif %}
+
+    <div class="actions">
+      {% if step > 1 %}
+        <a class="button secondary" href="?step={{ previous }}">Back</a>
+      {% else %}
+        <a class="button secondary" href="{% url 'dashboard' %}">Cancel</a>
+      {% endif %}
+      <button name="action" value="next">{% if step == 5 %}Submit report{% else %}Save and next{% endif %}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

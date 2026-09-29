@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<a class="back-link" href="{% url 'dashboard' %}">Back to dashboard</a>
+
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Possible match</span>
+    <h1>Match review</h1>
+    <p class="muted">Compare both reports before choosing a handover step.</p>
+  </div>
+  <span class="score-pill">{{ match.score }}/100</span>
+</div>
+
+<div class="notice warning">
+  A score is a report comparison. Confirm the item in person before recording return.
+</div>
+
+<div class="match-grid">
+  <section class="panel report-card">
+    <div class="card-head">
+      <h2>Lost report</h2>
+      <span class="badge lost">{{ match.lost.display_id }}</span>
+    </div>
+    <strong>{{ match.lost.title }}</strong>
+    <dl class="meta-list">
+      <dt>Category</dt>
+      <dd>{{ match.lost.category }}</dd>
+      <dt>Date</dt>
+      <dd>{{ match.lost.event_date|date:"d-m-Y" }}</dd>
+      <dt>Location</dt>
+      <dd>{{ match.lost.location }} ({{ match.lost.location_detail }})</dd>
+      <dt>Description</dt>
+      <dd>{{ match.lost.description }}</dd>
+    </dl>
+  </section>
+
+  <section class="panel report-card">
+    <div class="card-head">
+      <h2>Found report</h2>
+      <span class="badge found">{{ match.found.display_id }}</span>
+    </div>
+    <strong>{{ match.found.title }}</strong>
+    <dl class="meta-list">
+      <dt>Category</dt>
+      <dd>{{ match.found.category }}</dd>
+      <dt>Date</dt>
+      <dd>{{ match.found.event_date|date:"d-m-Y" }}</dd>
+      <dt>Location</dt>
+      <dd>{{ match.found.location }} ({{ match.found.location_detail }})</dd>
+      <dt>Description</dt>
+      <dd>{{ match.found.description }}</dd>
+    </dl>
+  </section>
+
+  <section class="panel match-factors">
+    <h2>Match details</h2>
+    <div class="factor-list">
+      {% for factor,points in match.breakdown.items %}
+        <span class="factor"><strong>{{ points }}</strong>{{ factor }}</span>
+      {% endfor %}
+    </div>
+    <p class="private-note">Private answers stay hidden on this page.</p>
+  </section>
+</div>
+
+<section class="panel handover-panel">
+  <div class="section-head">
+    <div>
+      <h2>{{ match.state }}</h2>
+      <p class="muted">Use this section to propose, accept, dismiss, or complete the handover.</p>
+    </div>
+  </div>
+
+  {% if match.state == 'Possible Match' %}
+    <form method="post" data-meeting-form class="handover-form">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button name="action" value="propose">Propose handover</button>
+    </form>
+  {% endif %}
+
+  {% if match.meeting_at %}
+    <div class="notice neutral">
+      <strong>Scheduled handover</strong>
+      <span>Location: {{ match.meeting_place }}</span>
+      <span>Time: {{ match.meeting_at|date:"d-m-y h:i A" }} Pakistan time</span>
+    </div>
+  {% endif %}
+
+  {% if match.state == 'Handover Proposed' and match.proposer_id != user.pk %}
+    <p class="muted">The other party has proposed a handover meeting. Review the details before accepting.</p>
+    <form method="post">
+      {% csrf_token %}
+      <button name="action" value="accept">Accept this meeting</button>
+    </form>
+  {% endif %}
+
+  {% if match.state == 'Possible Match' or match.state == 'Handover Proposed' %}
+    <form method="post" data-reject-match class="danger-form">
+      {% csrf_token %}
+      <button class="secondary danger" name="action" value="reject">Dismiss this suggestion</button>
+    </form>
+  {% endif %}
+
+  {% if match.state == 'Rejected' and can_restore %}
+    <div class="notice">This match suggestion was dismissed. Restore it only if that was a mistake.</div>
+    <form method="post" data-restore-match>
+      {% csrf_token %}
+      <button class="secondary" name="action" value="restore">Restore suggestion</button>
+    </form>
+  {% endif %}
+
+  {% if match.state == 'Handover Scheduled' %}
+    <p class="muted">After meeting at the scheduled time, confirm the item return.</p>
+    <form method="post">
+      {% csrf_token %}
+      <button name="action" value="returned">Confirm item returned</button>
+    </form>
+  {% endif %}
+
+  <div class="contact-box">
+    {% if contacts %}
+      <h3>Participant contact details</h3>
+      <p><strong>Lost report contact:</strong> {{ match.lost.contact }}</p>
+      <p><strong>Found report contact:</strong> {{ match.found.contact }}</p>
+    {% else %}
+      <p>Contact information appears after both participants accept the handover proposal.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

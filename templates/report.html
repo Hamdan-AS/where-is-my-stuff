@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<a class="back-link" href="{% url 'dashboard' %}">Back to dashboard</a>
+
+<section class="panel report-detail">
+  <div class="page-head tight">
+    <div>
+      <span class="eyebrow">{{ report.display_id }}</span>
+      <h1>{{ report.title }}</h1>
+      <p class="muted">{{ report.kind }} item. {{ report.category }}. {{ report.event_date|date:"d-m-Y" }}</p>
+    </div>
+    <span class="badge {{ report.status|lower }}">{{ report.status }}</span>
+  </div>
+
+  <dl class="meta-list wide">
+    <dt>Description</dt>
+    <dd>{{ report.description }}</dd>
+    <dt>Location</dt>
+    <dd>{{ report.location }}. {{ report.location_detail }}</dd>
+  </dl>
+
+  {% if report.status == 'Open' and request.user == report.owner %}
+    {% if report.kind == 'Lost' %}
+    <div class="qr-box">
+      <img src="{% url 'report-qr' report.public_id %}" alt="Scan if found" width="160" height="160">
+      <div>
+        <strong>Found this item?</strong>
+        <p class="muted">A finder scans this to file a quick found report and arrange the handover.</p>
+        <a class="btn btn-secondary" href="{% url 'report-qr' report.public_id %}" download="report-qr.png">Download QR</a>
+      </div>
+    </div>
+    {% endif %}
+    <form method="post" action="{% url 'edit' report.pk %}" class="form-actions">
+      {% csrf_token %}
+      <button class="secondary">Edit report</button>
+    </form>
+  {% elif report.reserved %}
+    <p class="notice">Editing is locked while a handover is in progress.</p>
+  {% endif %}
+</section>
+
+{% if related_matches %}
+<section class="panel">
+  <div class="section-head">
+    <div>
+      <h2>Matches for this report</h2>
+      <p class="muted">Open a comparison before arranging a handover.</p>
+    </div>
+  </div>
+  {% for match in related_matches %}
+    <a class="match-row" href="{% url 'match' match.pk %}">
+      <span>
+        <strong>{{ match.lost.title }}</strong>
+        <small>{{ match.lost.display_id }} and {{ match.found.display_id }}</small>
+      </span>
+      <span class="badge">{{ match.score }}/100 · {{ match.state }}</span>
+    </a>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="section-head">
+    <div>
+      <h2>Activity log</h2>
+      <p class="muted">Status changes for this report.</p>
+    </div>
+  </div>
+  {% for event in events %}
+    <div class="listrow">
+      <span>{{ event.text }}</span>
+      <span class="muted">{{ event.created_at|date:"d-m-Y H:i" }}</span>
+    </div>
+  {% empty %}
+    <p class="muted">No activity recorded yet.</p>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -10,7 +10,7 @@ Status: complete.
 
 - [x] Django project, settings, migrations, SQLite database
 - [x] Custom user model with email login, registration, logout, sessions, and CSRF
-- [x] Four-step report wizard with account-owned server drafts
+- [x] Five-step report wizard (Type, Details, Location, Matching, Review) with account-owned server drafts
 - [x] Lost and found fields with category-specific private questions
 - [x] Privacy validation for public descriptions and private matching answers
 - [x] Matching engine with eligibility rules, bounded scoring, and duplicate-pair protection
@@ -76,19 +76,22 @@ Status: pending.
 - [ ] Image uploads
 - [ ] Social or campus single sign-on
 - [ ] AI matching
-- [ ] Maps and location picker
+- [x] Maps and location picker — Leaflet + OpenStreetMap, browser Geolocation, and lat/lng fields all writing `Report.lat`/`Report.lng`. Shipped, not deferred. Drift corrected 29-09-2026.
 - [ ] In-app chat
 - [ ] Production email notifications
 - [ ] Native mobile app
 - [ ] Separate child or sub-item reports
 - [ ] Automatic draft saving while typing
-- [ ] Formal SRS and SDD documents
+- [ ] Formal SRS and SDD documents — archived in `docs/cs326-legacy/`, written against the removed PHP implementation
 
 ## Verification
 
 - Django system check passes.
 - Migration drift check passes with no new migration required.
-- 39 unit tests pass with `.venv/bin/python manage.py test core.tests` (includes public-field screening and the four scan-flow regression tests).
+- Unit tests pass with `.venv/bin/python manage.py test core`. Use `core`, not
+  `core.tests`: the narrow form matches only `core/tests.py` and silently skips
+  `core/test_screening.py`. Re-measure the count on the next run; it was last recorded as
+  39 here and as 42 in `report-structure.md`, and neither included the screening module.
 - 2 browser tests pass with `.venv/bin/python manage.py test core.test_browser`.
 - Adversarial edge suite: 42 checks, 34 pass, 8 correctly blocked by design, 0 gaps.
 - Browser tests need permission to bind a temporary localhost port in the sandbox.

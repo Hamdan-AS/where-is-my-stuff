@@ -209,6 +209,6 @@ Two browser tests in `core/test_browser.py` drive Chrome through Playwright and 
 
 **There is no browse or map view.** No page lists reports from multiple owners. Any such page changes the disclosure surface described in section 8.
 
-**No commits.** The repository has no tracked files at all, so none of this work is version-controlled.
+**Version control.** The repository had no tracked files when this was written. A git repository was created on 29-09-2026; the pre-cleanup state is commit `54fa6fc`.
 
-**Documentation drift.** `TODO-INCREMENTAL.md:79` still lists "Maps and location picker" as deferred. `AGENTS.md` has no mention of the map, the vendored Leaflet files, or the tile provider. Increment 4 will need a content security policy entry for `tile.openstreetmap.org`, and a note that the public OSM tile server is community funded and not sized for production traffic.
+**Documentation drift, partly resolved.** `TODO-INCREMENTAL.md` listed "Maps and location picker" as deferred; corrected 29-09-2026. `AGENTS.md` now documents the map, the vendored Leaflet files, and the tile provider. Increment 4 still needs a content security policy entry for `tile.openstreetmap.org`, and a note that the public OSM tile server is community funded and not sized for production traffic.

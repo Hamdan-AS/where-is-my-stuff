@@ -1,12 +1,17 @@
-# Where Is My Stuff? — Project Essence & Necessary Improvements
+# Where Is My Stuff? — design rationale and decision log
 
-> Single authoritative summary of the campus lost-and-found application, its current state, and the minimum improvements required to make it genuinely useful.
+> Why the application is built the way it is, and what still needs building. For current
+> task status, `TODO-INCREMENTAL.md` is the single authoritative tracker.
+
+Written 13-09-2026 and not updated since. Two items below are out of date: it describes a
+four-step wizard (the app has five steps) and lists QR scan-to-claim as future work (it
+shipped 13-09-2026). The improvement list itself is still valid.
 
 ---
 
 ## Project Vision
 
-**One sentence:** A campus lost-and-found where a student who loses an item files a 4-step report, the system silently compares it against every opposite report using private matching answers, and both parties are notified the moment a credible match exists — then they arrange a handover with zero admin intervention.
+**One sentence:** A campus lost-and-found where a student who loses an item files a 5-step report, the system silently compares it against every opposite report using private matching answers, and both parties are notified the moment a credible match exists — then they arrange a handover with zero admin intervention.
 
 **Core promise:** *Friction between "I lost this" and "I found this" is minimal.*
 
@@ -17,7 +22,7 @@
 | Area | Status | Notes |
 |------|--------|-------|
 | Custom user model, email login, registration, CSRF, sessions | ✅ | AbstractUser, username=email |
-| Four-step wizard (Type → Details → Matching → Review) | ✅ | Drafts saved server-side, no localStorage |
+| Five-step wizard (Type → Details → Location → Matching → Review) | ✅ | Drafts saved server-side, no localStorage |
 | Category-specific private matching questionnaire | ✅ | Dynamic fields via `schema()` |
 | Matching engine (category 20, location 20, date 15/10/5, description 15, private 30) | ✅ | ≥70 points + ≥2 agreements |
 | Handover workflow (Propose → Accept → Scheduled → Returned) | ✅ | Atomic, reservations, competing-match protection |
@@ -25,7 +30,7 @@
 | Staff moderation (Close / Remove) | ✅ | Audited, no admin UI for reports |
 | Dashboard (stats, matches needing action, 3 open reports) | ✅ | Match-first, drafts inline |
 | Report history with search/filter/pagination | ✅ | |
-| 21 unit tests + 2 browser tests passing | ✅ | |
+| Unit and browser tests passing | ✅ | Count was 21 on 13-09; re-measure with `manage.py test core` |
 | System check clean, no migration drift | ✅ | |
 
 ---
@@ -175,13 +180,18 @@ X_FRAME_OPTIONS = "DENY"
 
 ---
 
-### 10. Stale Documentation Fixes (Immediate)
+### 10. Stale Documentation Fixes (DONE 29-09-2026)
 
-| File | Fix |
-|------|-----|
-| `TODO-INCREMENTAL.md` line 82 | "20 unit tests" → "21 unit tests" |
-| `AGENTS.md` line 49 | Scoring doc: "location 20, date 15/10/5" (already fixed in this session) |
-| `README.md` line 60 | "TODO.md" → "TODO-INCREMENTAL.md" (already fixed in this session) |
+| File | Fix | Status |
+|------|-----|--------|
+| `TODO.md` | PHP-era tracker promising MySQL tests. Deleted. | done |
+| `README.md` | Pointed at `where-is-my-stuff-python` on port 8085 and described a 4-step wizard. Rewritten. | done |
+| `LOCALHOST-COMMANDS.txt` | Same wrong path and port. Rewritten. | done |
+| `AGENTS.md` | Warned against port 8085 belonging to a sibling project. Removed. | done |
+| `README-UI-ITERATION.md` | Described this folder as a copy of `where-is-my-stuff-gps`. Repointed. | done |
+| `AGENTS.md`, `README.md`, `LOCALHOST-COMMANDS.txt`, `TODO-INCREMENTAL.md` | Test command `core.tests` → `core`, so `core/test_screening.py` actually runs. | done |
+| 13 CS-326 documents | Moved to `docs/cs326-legacy/` with a README. They describe the deleted PHP implementation. | done |
+| Test counts | 39 in `TODO-INCREMENTAL.md` vs 42 in `report-structure.md`. Nobody can reconcile these without running the suite. | open |
 
 ---
 
@@ -201,17 +211,21 @@ X_FRAME_OPTIONS = "DENY"
 
 ---
 
-### 12. QR Scan-to-Claim / Share Link (Increment 5 — Medium)
+### 12. QR Scan-to-Claim / Share Link (SHIPPED 13-09-2026)
 
-**Why:** A finder who holds the item should claim it in under a minute. The QR is the visual carrier for a public, tokenized share link; both carry the same URL.
+**Status:** built. Implemented in `core/qr.py`, `core/views.py:258` and `core/views.py:264`, with four regression tests in `core/tests.py`.
 
-**Design (locked 2026-09-13):**
+**What shipped:**
 - `Report.public_id` = random UUID, never expose `pk` in the QR URL
 - `/r/<uuid:public_id>/qr/` renders the QR PNG on the fly via `qrcode[pil]`, nothing stored on disk
 - `/r/<uuid:public_id>/found/` is `@login_required` and seeds a Found draft: `kind=Found`, category locked, title/location suggested from the lost report's public fields
 - Match is **not** written by the view — submit → `publish()` → `recalculate()` → existing state machine (propose/accept/scheduled/returned)
 - Resolved guard: token shows a closed notice and serves no form when `status != "Open"` or the report is reserved
-- Token rotation on close/handover so stale physical tags die with the report
+- Owner self-scan is refused with an info notice, and the QR box renders only on Lost reports
+
+**Not built, still open:** token rotation on close or handover. `public_id` is assigned
+once at report creation and never changes, so a printed QR tag stays live for the life of
+the report rather than dying with it. `core/models.py:14`.
 
 **Effort:** ~3 hours
 
@@ -299,7 +313,7 @@ X_FRAME_OPTIONS = "DENY"
 | Dashboard restructure | 1 | High UX impact |
 | Doc fixes | 0.5 | Immediate |
 | Private report photos | 3 | Medium (Increment 4) |
-| QR scan-to-claim | 3 | Medium (Increment 5) |
+| QR scan-to-claim | 3 | Shipped 13-09 |
 | Email verification | 1.5 | Medium (Increment 3) |
 | Account deletion | 1.5 | Low (Increment 3) |
 | **Total** | **~24.5** | |
@@ -313,16 +327,20 @@ X_FRAME_OPTIONS = "DENY"
 | 2026-09-12 | Match-first dashboard | Matches are the unique value; reports are reference |
 | 2026-09-12 | Password reset before profile | Lockout is higher friction than wrong name |
 | 2026-09-12 | In-app notifications first, email fallback | Most students check phone, not email |
-| 2026-09-12 | Keep 4-step wizard | Private answers are the matching signal; cannot compress further |
+| 2026-09-12 | Keep the wizard long rather than short | Private answers are the matching signal; cannot compress further. Later became 5 steps when the location step was added for GPS. |
 | 2026-09-12 | SQLite for dev, Postgres for prod | Dev simplicity, prod scale |
 | 2026-09-13 | Photos: private, both sides, unscored, revealed after both accept | Photos confirm, they don't match; avoids the image-comparison model |
 | 2026-09-13 | QR scan-to-claim reuses the existing report pipeline | Scan seeds a Found draft; publish → recalculate creates the match; no new match API |
 | 2026-09-13 | Neutral login placeholder | Removed institute-specific domain hint to avoid security concerns |
+| 2026-09-29 | Django rewrite is the only implementation; PHP project removed 26-09 | Pre-cleanup state is git commit `54fa6fc` |
+| 2026-09-29 | CS-326 documents archived to `docs/cs326-legacy/` rather than deleted | Needed for the documentation filing, but they describe the removed PHP code |
+| 2026-09-29 | Five CSS styling directions and their screenshots deleted | Exploration output for a design pass that was never adopted |
 
 ---
 
 ## How to Use This Document
 
-- **New contributor:** Read "Current State" + "Architecture Snapshot" → run tests → pick top priority from "Necessary Improvements"
-- **Reviewer:** Verify each "Necessary Improvement" has a checkbox in TODO-INCREMENTAL.md
-- **Stakeholder:** "Project Vision" + "Effort Summary" = scope & timeline
+- **New contributor:** Read `AGENTS.md` and `README.md` first, then "Current State" and "Architecture Snapshot" below, then run the tests.
+- **Reviewer:** Check each "Necessary Improvement" against `TODO-INCREMENTAL.md`, which holds the live checkboxes.
+- **Stakeholder:** "Project Vision" plus "Effort Summary" gives scope and timeline.
+- **Filing coursework:** Use `docs/cs326-legacy/`, not this file.

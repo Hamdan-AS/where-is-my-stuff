@@ -12,7 +12,7 @@ How to use it:
 3. Paste the **Negative prompt** at the end of every prompt.
 4. Assemble the individual screens into one board using the **Board** block.
 
-Write the output to `ui-previews/wireframes/`.
+Write the output to `docs/wireframes/`.
 
 ---
 
@@ -689,8 +689,11 @@ grey rounded placeholder bar whose width matches the length of the real label. K
 numbers as real digits. Keep one blue accent. The result should read as pure layout.
 ```
 
-Also worth knowing before you spend tokens: the existing `ui-wireframe-final.png` in the
-project root is stale. It shows a four-step wizard and a sidebar with "Possible matches"
-and "My profile", neither of which exists any more. The wizard is five steps
-(`views.py:201` passes `[(1,"Type"),(2,"Details"),(3,"Location"),(4,"Matching"),(5,"Review")]`)
-and the sidebar is Dashboard, My reports, Create report, Management.
+Also worth knowing before you spend tokens: the three wireframe PNGs that used to sit in
+the project root (`ui-wireframe-final.png`, `ui-wireframes-redesign.png`,
+`map-screens-wireframe.png`) were all deleted on 29-09-2026. `ui-wireframe-final.png` was
+confirmed stale: it showed a four-step wizard and a sidebar with "Possible matches" and
+"My profile", neither of which exists. The wizard is five steps
+(`core/views.py:201` passes `[(1,"Type"),(2,"Details"),(3,"Location"),(4,"Matching"),(5,"Review")]`)
+and the sidebar is Dashboard, My reports, Create report, Management. This brief is the
+accurate reference; recover the old images from git commit `54fa6fc` if you need them.

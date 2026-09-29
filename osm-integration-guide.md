@@ -34,19 +34,27 @@ location_name = models.CharField(max_length=255, blank=True)
 - Confirm existing report views pass the new fields through
 
 ### Phase 2: Render the Map
+
+Leaflet is vendored, not loaded from a CDN, so the app has no third-party script
+dependency at runtime. Use `{% static 'leaflet.css' %}` and `{% static 'leaflet.js' %}` as
+`templates/wizard.html:6` and `templates/wizard.html:7` do.
+
 ```html
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="{% static 'leaflet.css' %}" />
+<script src="{% static 'leaflet.js' %}" defer></script>
 
 <div id="map" style="height: 400px;"></div>
 ```
 ```javascript
 const map = L.map("map").setView([24.8607, 67.0011], 13); // Karachi default
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap contributors'
+L.tileLayer("https://tile.openstreetmap.de/{z}/{x}/{y}.png", {
+  maxZoom: 18,
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 ```
+
+`maxZoom` is 18, not 19, because `tile.openstreetmap.de` returns 404 at 19. This matches
+`static/app.js:52`.
 
 ### Phase 3: Location Picker (Report Form)
 Clicking the map sets a draggable marker and writes into hidden form fields.
@@ -99,7 +107,7 @@ One request on explicit submit is within policy; a request per keystroke is not.
 
 ## 4. Usage Policy Notes
 
-- **Tiles:** `tile.openstreetmap.org` is community-funded, not an unlimited API. Required: visible attribution, HTTPS, tile caching, no bulk/offline downloading. Fine for localhost or a small deployment; self-host or use a commercial OSM-derived provider (e.g. MapTiler, Stadia Maps) at production scale.
+- **Tiles:** `tile.openstreetmap.org` 403s every tile from this app with "App is not following the tile usage policy of OpenStreetMap's volunteer-run servers". The project uses `tile.openstreetmap.de`, which needs no key. Both are community-funded, not an unlimited API. Required: visible attribution, HTTPS, tile caching, no bulk/offline downloading. Fine for localhost or a small deployment; self-host or use a keyed commercial provider (MapTiler, Stadia Maps) at production scale.
 - **Nominatim:** max 1 request/second, requires an identifying User-Agent, no client-side autocomplete. A user-triggered search on submit is acceptable.
 - **No API key required.** Leaflet is provider-agnostic, so the tile source can be swapped later without touching application code.
 

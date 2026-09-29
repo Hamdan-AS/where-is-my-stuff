@@ -17,6 +17,12 @@ state is recoverable from git commit `54fa6fc`.
 - `verification-and-validation.md` records `php -l` results and `matching_test.php` runs.
 - `SE-checklist.md` line 23 describes "the small PHP/MySQL scope".
 - `scope-freeze.md` points at `/home/elite/sandbox/where-is-my-stuff-gps/`.
+- `rmmm.md`, `srs.md`, `verification-and-validation.md`, `SE-checklist.md`, and
+  `maintenance-record.md` all cite `tests/integration_test.py` as the evidence for
+  privacy, ownership, and concurrency controls. That file was deleted on 29-09-2026. It
+  drove a PHP fixture (`tests/db_fixture.php`), so it could not run against the Django
+  code even before removal. The Django equivalent is `core/tests.py` plus
+  `core/test_screening.py`; run them with `manage.py test core`.
 
 The diagrams, the requirement IDs, the risk register, and the COCOMO estimates remain
 usable as coursework artifacts. The module names, file names, LOC counts, and stack

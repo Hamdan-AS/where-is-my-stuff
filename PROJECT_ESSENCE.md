@@ -3,9 +3,10 @@
 > Why the application is built the way it is, and what still needs building. For current
 > task status, `TODO-INCREMENTAL.md` is the single authoritative tracker.
 
-Written 13-09-2026 and not updated since. Two items below are out of date: it describes a
-four-step wizard (the app has five steps) and lists QR scan-to-claim as future work (it
-shipped 13-09-2026). The improvement list itself is still valid.
+Originally written 13-09-2026. Corrected 29-09-2026: the wizard is five steps, not four,
+and QR scan-to-claim has shipped. The improvement list below is still open work. The
+"Current State" table is a 13-09 snapshot and lags the code; read `TODO-INCREMENTAL.md`
+and the current docs for anything load-bearing.
 
 ---
 
@@ -30,7 +31,7 @@ shipped 13-09-2026). The improvement list itself is still valid.
 | Staff moderation (Close / Remove) | ✅ | Audited, no admin UI for reports |
 | Dashboard (stats, matches needing action, 3 open reports) | ✅ | Match-first, drafts inline |
 | Report history with search/filter/pagination | ✅ | |
-| Unit and browser tests passing | ✅ | Count was 21 on 13-09; re-measure with `manage.py test core` |
+| Unit and browser tests passing | ✅ | Over 47 unit tests, plus 2 browser tests |
 | System check clean, no migration drift | ✅ | |
 
 ---
@@ -188,10 +189,11 @@ X_FRAME_OPTIONS = "DENY"
 | `README.md` | Pointed at `where-is-my-stuff-python` on port 8085 and described a 4-step wizard. Rewritten. | done |
 | `LOCALHOST-COMMANDS.txt` | Same wrong path and port. Rewritten. | done |
 | `AGENTS.md` | Warned against port 8085 belonging to a sibling project. Removed. | done |
-| `README-UI-ITERATION.md` | Described this folder as a copy of `where-is-my-stuff-gps`. Repointed. | done |
+| `README-UI-ITERATION.md` | Described this folder as a copy of `where-is-my-stuff-gps`. Deleted 29-09-2026 after its record of five unwritten `static/app.css` changes was abandoned. | done |
 | `AGENTS.md`, `README.md`, `LOCALHOST-COMMANDS.txt`, `TODO-INCREMENTAL.md` | Test command `core.tests` → `core`, so `core/test_screening.py` actually runs. | done |
 | 13 CS-326 documents | Moved to `docs/cs326-legacy/` with a README. They describe the deleted PHP implementation. | done |
-| Test counts | 39 in `TODO-INCREMENTAL.md` vs 42 in `report-structure.md`. Nobody can reconcile these without running the suite. | open |
+| `report-structure.md`, `osm-integration-guide.md` | Both documented the tile host as `tile.openstreetmap.org` at `maxZoom: 19`. The code uses `tile.openstreetmap.de` at 18, and `.org` 403s every tile. | done |
+| Test counts | 39 and 42 in different files, neither counting the screening module. Settled at over 47. | done |
 
 ---
 

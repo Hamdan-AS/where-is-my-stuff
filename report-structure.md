@@ -2,7 +2,7 @@
 
 Reference for the lost-and-found Report entity and the machinery around it. Describes the code as it stands today, after the Leaflet and OpenStreetMap picker replaced the dormant Google Maps one.
 
-Verified against `core/models.py`, `core/forms.py`, `core/views.py`, `core/services.py`, `core/qr.py`, `config/settings.py`, `config/urls.py`, all templates, `static/app.js`, and the three test classes in `core/tests.py`. 42 unit tests pass; no migration drift.
+Verified against `core/models.py`, `core/forms.py`, `core/views.py`, `core/services.py`, `core/qr.py`, `config/settings.py`, `config/urls.py`, all templates, `static/app.js`, and the three test classes in `core/tests.py`. The suite is over 47 tests; no migration drift.
 
 ## 1. The Report model
 
@@ -72,7 +72,7 @@ The picker lives in the wizard at step 3, its own step, rendered just above the 
 Behaviour, all in `static/app.js:34-79`:
 
 - Leaflet 1.9.4, vendored at `static/leaflet.js` and `static/leaflet.css`, BSD-2-Clause, loaded with `defer` from a `{% block head %}` that `base.html` now provides. Because both it and `app.js` are deferred and it appears earlier in the document, `L` is defined before the picker code runs.
-- Tile layer is `https://tile.openstreetmap.org/{z}/{x}/{y}.png` at `maxZoom: 19`, with the required visible OpenStreetMap attribution.
+- Tile layer is `https://tile.openstreetmap.de/{z}/{x}/{y}.png` at `maxZoom: 18`, with the required visible OpenStreetMap attribution. Not `tile.openstreetmap.org`, which returns 403 for every tile under the OSM tile usage policy. `static/app.js:52`.
 - No saved coordinates means the map centres on Karachi at zoom 13. Saved coordinates mean it centres on them at zoom 15 and the status line reads "Pin loaded from your saved draft."
 - Clicking the map moves the marker and writes both inputs to 6 decimal places. Dragging the marker does the same on `dragend`.
 - "Use my location" calls `navigator.geolocation.getCurrentPosition`, recentres at zoom 15, and writes the inputs. The button is hidden entirely when the browser has no geolocation API.
@@ -211,4 +211,4 @@ Two browser tests in `core/test_browser.py` drive Chrome through Playwright and 
 
 **Version control.** The repository had no tracked files when this was written. A git repository was created on 29-09-2026; the pre-cleanup state is commit `54fa6fc`.
 
-**Documentation drift, partly resolved.** `TODO-INCREMENTAL.md` listed "Maps and location picker" as deferred; corrected 29-09-2026. `AGENTS.md` now documents the map, the vendored Leaflet files, and the tile provider. Increment 4 still needs a content security policy entry for `tile.openstreetmap.org`, and a note that the public OSM tile server is community funded and not sized for production traffic.
+**Documentation drift, resolved 29-09-2026.** `TODO-INCREMENTAL.md` listed "Maps and location picker" as deferred; corrected. `AGENTS.md` now documents the map, the vendored Leaflet files, and the tile provider. This file and `osm-integration-guide.md` both claimed the tile host was `tile.openstreetmap.org` at `maxZoom: 19`; the code uses `tile.openstreetmap.de` at `maxZoom: 18`, and the `.org` host 403s every tile. Increment 4 still needs a content security policy allowing `img-src` and `connect-src` for the tile host, and a keyed provider such as MapTiler or Stadia Maps, or self-hosted tiles, before deployment. `tile.openstreetmap.de` is a volunteer community server not sized for real traffic.

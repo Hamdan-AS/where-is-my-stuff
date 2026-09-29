@@ -90,8 +90,7 @@ Status: pending.
 - Migration drift check passes with no new migration required.
 - Unit tests pass with `.venv/bin/python manage.py test core`. Use `core`, not
   `core.tests`: the narrow form matches only `core/tests.py` and silently skips
-  `core/test_screening.py`. Re-measure the count on the next run; it was last recorded as
-  39 here and as 42 in `report-structure.md`, and neither included the screening module.
+  `core/test_screening.py`. Over 47 tests in total, counting all three modules.
 - 2 browser tests pass with `.venv/bin/python manage.py test core.test_browser`.
 - Adversarial edge suite: 42 checks, 34 pass, 8 correctly blocked by design, 0 gaps.
 - Browser tests need permission to bind a temporary localhost port in the sandbox.

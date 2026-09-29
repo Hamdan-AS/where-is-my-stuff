@@ -94,8 +94,8 @@ login throttling, backup policy, and a PostgreSQL concurrency review.
 `TODO-INCREMENTAL.md` is the single authoritative project tracker and holds the local demo
 credentials. Increments 1 and 2 are complete, increments 3 and 4 are pending.
 
-`docs/cs326-legacy/` holds the CS-326 documentation filing. It describes a removed PHP
-implementation and does not match this code.
+The CS-326 documentation set, and the PHP project it described, are both gone. The
+Django application is the only implementation.
 
 Deferred: separate child reports, social login, images, AI, chat, notifications by email,
 hosted deployment, and formal academic SRS/SDD packages.

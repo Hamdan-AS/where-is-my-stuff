@@ -191,7 +191,7 @@ X_FRAME_OPTIONS = "DENY"
 | `AGENTS.md` | Warned against port 8085 belonging to a sibling project. Removed. | done |
 | `README-UI-ITERATION.md` | Described this folder as a copy of `where-is-my-stuff-gps`. Deleted 29-09-2026 after its record of five unwritten `static/app.css` changes was abandoned. | done |
 | `AGENTS.md`, `README.md`, `LOCALHOST-COMMANDS.txt`, `TODO-INCREMENTAL.md` | Test command `core.tests` → `core`, so `core/test_screening.py` actually runs. | done |
-| 13 CS-326 documents | Moved to `docs/cs326-legacy/` with a README. They describe the deleted PHP implementation. | done |
+| 13 CS-326 documents | Deleted 29-09-2026. They described the removed PHP implementation, so keeping them in the tree only invited confusion. | done |
 | `report-structure.md`, `osm-integration-guide.md` | Both documented the tile host as `tile.openstreetmap.org` at `maxZoom: 19`. The code uses `tile.openstreetmap.de` at 18, and `.org` 403s every tile. | done |
 | Test counts | 39 and 42 in different files, neither counting the screening module. Counted properly from the source: 65 methods, 46 + 17 + 2. | done |
 
@@ -335,7 +335,7 @@ the report rather than dying with it. `core/models.py:14`.
 | 2026-09-13 | QR scan-to-claim reuses the existing report pipeline | Scan seeds a Found draft; publish → recalculate creates the match; no new match API |
 | 2026-09-13 | Neutral login placeholder | Removed institute-specific domain hint to avoid security concerns |
 | 2026-09-29 | Django rewrite is the only implementation; PHP project removed 26-09 | Pre-cleanup state is git commit `54fa6fc` |
-| 2026-09-29 | CS-326 documents archived to `docs/cs326-legacy/` rather than deleted | Needed for the documentation filing, but they describe the removed PHP code |
+| 2026-09-29 | CS-326 documents deleted, not archived | Archived first, then deleted once the documentation filing was dropped. Recoverable from git commit `54fa6fc`. |
 | 2026-09-29 | Five CSS styling directions and their screenshots deleted | Exploration output for a design pass that was never adopted |
 
 ---
@@ -345,4 +345,4 @@ the report rather than dying with it. `core/models.py:14`.
 - **New contributor:** Read `AGENTS.md` and `README.md` first, then "Current State" and "Architecture Snapshot" below, then run the tests.
 - **Reviewer:** Check each "Necessary Improvement" against `TODO-INCREMENTAL.md`, which holds the live checkboxes.
 - **Stakeholder:** "Project Vision" plus "Effort Summary" gives scope and timeline.
-- **Filing coursework:** Use `docs/cs326-legacy/`, not this file.
+- **Recovering the CS-326 documents:** `git show 54fa6fc:srs.md` and similar, or `git checkout 54fa6fc -- srs.md`.

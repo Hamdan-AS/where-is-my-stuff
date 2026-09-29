@@ -47,7 +47,6 @@ Browser tests need Playwright and Chrome (`/usr/bin/google-chrome`). They use an
 - `templates/` — Django templates (no separate frontend build).
 - `static/` — CSS, JS, fonts, images, and vendored Leaflet 1.9.4 (BSD-2-Clause, see `static/leaflet-LICENSE`). `static/images/` holds Leaflet marker and layer sprites.
 - `docs/WIREFRAME-BRIEF.md` — written spec of all screens, for generating wireframes.
-- `docs/cs326-legacy/` — CS-326 documentation filing. Describes the removed PHP implementation. Not a description of this code.
 - `db.sqlite3` — Database (gitignored, contains private answers).
 - `.venv/` — Virtual environment (gitignored).
 

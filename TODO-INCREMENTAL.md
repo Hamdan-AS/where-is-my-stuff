@@ -82,7 +82,7 @@ Status: pending.
 - [ ] Native mobile app
 - [ ] Separate child or sub-item reports
 - [ ] Automatic draft saving while typing
-- [ ] Formal SRS and SDD documents — archived in `docs/cs326-legacy/`, written against the removed PHP implementation
+- [ ] Formal SRS and SDD documents — the CS-326 set was deleted 29-09-2026 along with the PHP project it described
 
 ## Verification
 

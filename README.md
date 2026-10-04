@@ -119,6 +119,9 @@ policy, production security review, and load testing.
 
 ## Delivery
 
+See [repository hygiene](docs/REPOSITORY-HYGIENE.md) for ignored local files,
+archived explorations, and safe cleanup guidance.
+
 For cloud learning, see [the cloud practice guide](docs/CLOUD-PRACTICE.md),
 `requirements-production.txt`, and `config.production`. Cloud deployment
 remains pending. Local PostgreSQL migration and concurrency

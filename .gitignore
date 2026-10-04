@@ -1,17 +1,37 @@
-.venv/
-__pycache__/
-*.pyc
-db.sqlite3
+# Local credentials (including .env.github); keep only the placeholder example.
 .env
-.playwright-mcp/
-private-media/
-manual-test-images/
-staticfiles/
 .env.*
 !.env.production.example
-.local-data/
-*.log
+
+# Python environments and generated caches.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Databases, private uploads, backups, and local archives.
 *.sqlite3
 *.sqlite3-journal
 *.sqlite3-wal
 *.sqlite3-shm
+private-media/
+.local-data/
+
+# Reproducible build/test output and design explorations.
+staticfiles/
+manual-test-images/
+.playwright-mcp/
+/static/login-concepts/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.log
+
+# Operating-system generated metadata.
+.DS_Store
+Thumbs.db
+desktop.ini

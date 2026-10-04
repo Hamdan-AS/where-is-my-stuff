@@ -152,7 +152,7 @@ The place name is deliberately kept as a coarse hint the finder can confirm, whi
 
 There is no page on which one user sees another user's report, other than a match they are part of. Any browse or map view of other people's reports would be a new disclosure surface and needs a decision, not just a template.
 
-`AGENTS.md` records two hard constraints that hold across all of the above: private matching answers are never rendered in match or management views, and reports, answers, drafts, and matches are absent from the admin.
+Two hard constraints hold across all of the above: private matching answers are never rendered in match or management views, and reports, answers, drafts, and matches are absent from the admin.
 
 ## 9. URL map
 
@@ -211,4 +211,4 @@ Two browser tests in `core/test_browser.py` drive Chrome through Playwright and 
 
 **Version control.** The repository had no tracked files when this was written. A git repository was created on 29-09-2026; the pre-cleanup state is commit `54fa6fc`.
 
-**Documentation drift, resolved 29-09-2026.** `TODO-INCREMENTAL.md` listed "Maps and location picker" as deferred; corrected. `AGENTS.md` now documents the map, the vendored Leaflet files, and the tile provider. This file and `osm-integration-guide.md` both claimed the tile host was `tile.openstreetmap.org` at `maxZoom: 19`; the code uses `tile.openstreetmap.de` at `maxZoom: 18`, and the `.org` host 403s every tile. Increment 4 still needs a content security policy allowing `img-src` and `connect-src` for the tile host, and a keyed provider such as MapTiler or Stadia Maps, or self-hosted tiles, before deployment. `tile.openstreetmap.de` is a volunteer community server not sized for real traffic.
+**Map deployment follow-up.** Increment 4 still needs a content security policy allowing `img-src` and `connect-src` for the tile host, and a keyed provider such as MapTiler or Stadia Maps, or self-hosted tiles, before deployment. `tile.openstreetmap.de` is a volunteer community server not sized for real traffic.

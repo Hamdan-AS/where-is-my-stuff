@@ -1,10 +1,9 @@
 # Cloud deployment practice
 
-Use `where-is-my-stuff-ui-surprise-v2`, the authoritative application folder.
+Use the `where-is-my-stuff` repository.
 V2 has redesigned templates, private item photos, owner-managed six-month QR labels,
 and adversarial, image, QR, and PostgreSQL concurrency tests. Account follow-up features
-and production deployment remain unfinished. See `TODO-INCREMENTAL.md` for current
-completion and verification status, and `report-qa/QA-REPORT-2026-10-04.md` for QA findings.
+and production deployment remain unfinished. See `README.md` for current feature status.
 
 ## Choosing a cloud
 

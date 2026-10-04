@@ -1,137 +1,161 @@
-# Where Is My Stuff? — Django application
+# Where Is My Stuff?
 
-Local campus lost-and-found application. Python 3.10+, Django 5.2, PostgreSQL, Django
-templates, CSS, and small browser scripts.
+**A lost-and-found platform for Karachi.**
 
-## Run
+Where Is My Stuff? helps Karachiites report misplaced belongings, share items
+they have found, and discover possible matches. It is designed for residents,
+commuters, students, and people working across the city—from a wallet left in
+Saddar to a bag found near a bus stop in Gulshan-e-Iqbal.
 
-This machine's v2 database has been migrated to PostgreSQL. Start Docker Desktop,
-then run `docker compose up -d --wait` before starting Django. Local credentials
-are loaded from the gitignored `.env` file. See [PostgreSQL setup and migration](docs/POSTGRESQL.md)
-for first setup on another machine, backups, and the preserved SQLite source.
+The application connects owners and finders through location-based matching,
+private item details, and an agreed handover. The current version runs locally;
+public deployment is still pending.
 
-Run these commands from the project directory. Create the virtual environment only
-the first time on a machine.
+## How it works
 
-```bash
-python -m venv .venv
-```
+1. **Report an item.** Choose Lost or Found and describe the item in a five-step
+   wizard: Type → Details → Location → Matching → Review.
+2. **Mark the location.** Enter a place or landmark and set coordinates using
+   the map, your device location, or the latitude and longitude fields.
+3. **Answer private questions.** Provide category-specific details that help
+   distinguish the item from similar belongings.
+4. **Review possible matches.** The app compares eligible reports using the
+   category, distance, date, description, and private answers.
+5. **Arrange a return.** Propose a meeting place and time. Contact details become
+   available after the other participant accepts. Either person can record the
+   return at or after the meeting time.
 
-Activate it in PowerShell:
+One account can report both lost and found items. Owners and finders arrange
+the return themselves; a match score or QR scan does not verify ownership.
+
+## Features
+
+| Feature | What it does |
+| --- | --- |
+| Lost and found reports | Supports wallets, cards and IDs, keys, electronics, bags, documents, cash, and other items. |
+| Location picker | Uses Leaflet and OpenStreetMap, with device location and manual coordinate entry. Place names and handover locations are free text. |
+| Private matching | Requires different owners, opposite report types, open reports, the same category, at least two meaningful agreements, and a score of 70 or more. |
+| Saved drafts | Saves each validated step when Next is selected. Drafts belong to the account and can be resumed later. |
+| Item photos | Accepts optional JPEG, PNG, or WebP images up to 5 MiB and 24 megapixels; resizes the full image and removes metadata. |
+| Report QR codes | Lets a finder sign in and start a Found draft from a Lost report's public details. |
+| Personal QR labels | Creates printable item labels, active for six months, with owner-controlled deactivation and reactivation. |
+| Handover workflow | Supports proposals, acceptance, dismissal, restoration, reservations, and return records. |
+| Report history | Provides search, type/status filters, pagination, and human-readable report IDs. |
+| Moderation | Allows staff to close or remove eligible reports with an audit trail. |
+
+Wallet questions adapt to the selected contents. A wallet remains one report,
+including an empty wallet or one with multiple cards. Bank and payment-service
+options include HBL, MCB, UBL, Meezan Bank, NayaPay, SadaPay, JazzCash, Easypaisa,
+and an Other option.
+
+## Privacy and data handling
+
+- Private matching answers are compared on the server and are not displayed in
+  match or management pages. Public descriptions are screened for personal identifiers.
+- Report photos are accessible to their owner and match participants. Stored
+  images are converted to JPEG and resized to a maximum long edge of 1,800 pixels
+  without cropping.
+- Report contact details are revealed after both participants agree to a handover.
+  **An active personal QR label intentionally shows its phone number to anyone
+  scanning it.** Expired or deactivated labels hide that number.
+- Drafts are stored on the server. There is no automatic saving while typing.
+- Databases contain private matching answers, including full identifiers requested
+  by some questionnaires. Application-level encryption at rest is not implemented.
+  Credentials, databases, backups, and private uploads stay out of Git.
+
+## Technology
+
+Python 3.10+, Django 5.2, PostgreSQL, server-rendered Django templates, CSS,
+JavaScript, Pillow, and QR generation. Leaflet is vendored locally; map tiles
+come from OpenStreetMap. There is no separate frontend build or REST API.
+
+SQLite is available as a fallback. PostgreSQL is the recommended local setup
+and supports the transaction concurrency tests. Times use `Asia/Karachi`.
+
+## Run locally
+
+Install Python and Docker Desktop, then start Docker Desktop. For a fresh checkout:
 
 ```powershell
+git clone https://github.com/Hamdan-AS/where-is-my-stuff-ui-surprise-v2.git
+cd where-is-my-stuff-ui-surprise-v2
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-On macOS or Linux, use `source .venv/bin/activate` instead. Then install and start:
-
-```bash
 pip install -r requirements.txt
+
+python scripts/setup_local_postgres.py
+docker compose up -d --wait
+python scripts/setup_local_postgres.py
 python manage.py migrate
 python manage.py runserver 127.0.0.1:8086
 ```
 
-Open http://127.0.0.1:8086/ and register. Skip the venv creation on a machine that
-already has one.
+The first setup-script call creates a local `.env` with generated database
+credentials. After PostgreSQL starts, the second call initializes the application
+database and role. This bootstrap is for the local Docker database.
 
-Create an administrator interactively:
-```bash
+On macOS or Linux, activate the environment with `source .venv/bin/activate`;
+the remaining Python commands are the same. The repository is private, so cloning
+requires GitHub access.
+
+Open **http://127.0.0.1:8086/** and register an account. On later runs, activate
+the existing environment, start Docker with `docker compose up -d --wait`, and
+run the server. See [PostgreSQL setup](docs/POSTGRESQL.md) for database details,
+backups, and migration instructions.
+
+To create an administrator:
+
+```powershell
 python manage.py createsuperuser
 ```
 
-Admin account management is at /admin/. Mark a user as staff for the restricted
-management page. Only superusers should receive auth-management permissions.
+Account administration is at `/admin/`. Users marked as staff can access
+`/management/`; reserve auth-management permissions for superusers.
 
-## Check
+## Verification
 
-```bash
+```powershell
 python manage.py check
 python manage.py makemigrations --check --dry-run
-python manage.py test core
+python manage.py test core --noinput
 ```
 
-`manage.py test core` runs the unit, boundary, adversarial, image/QR, and browser test
-modules. Browser tests are skipped unless Playwright and Chrome are available. Do not use
-`manage.py test core.tests`, which silently skips the boundary sweeps in
-`core/test_screening.py`.
+Use `test core` to include all unit, boundary, adversarial, image, QR, browser,
+and PostgreSQL concurrency modules. `test core.tests` runs only one test module.
 
-## Behaviour
+For browser checks:
 
-One account reports Lost and Found items. Reports use a five-step wizard: Type, Details,
-Location, Matching, Review, with one final submit. Next saves each validated step to an
-account-owned database draft. Step links perform a normal page refresh to load the
-selected step. Private drafts are stored on the local server, never in browser
-localStorage; drafts are not automatically saved while typing. Selection refresh retains
-the visible inputs but does not claim to save them.
+```powershell
+pip install -r requirements-dev.txt
+python -m playwright install chromium
+```
 
-Location has three ways in: the Leaflet and OpenStreetMap picker, the browser Geolocation
-button, and the latitude and longitude fields. All three write to the same
-`Report.lat` and `Report.lng` columns, which stay the single source of truth for
-position. The fields are the keyboard and no-JS path when tiles fail.
+The tests use installed Chrome when available, otherwise Playwright's Chromium.
+Browser tests are skipped when Playwright is absent; PostgreSQL-specific races
+are skipped on SQLite.
 
-A Lost report shows a QR code to share with the finder. Scanning it asks them to sign in,
-then seeds a Found draft with public item details. Scanning from the same account is
-refused. Accounts are not verified real-world identities, so another account can still
-start a Found draft from the QR; the code does not prove possession or ownership. The QR
-box renders only on Lost reports. Owners can also make six-month personal item labels
-that show their phone number to anyone scanning an active label; the owner and finder
-arrange the return themselves.
+The latest recorded full run on **4 October 2026 passed all 147 tests**, including
+Chrome and PostgreSQL concurrency checks. See the [QA report](report-qa/QA-REPORT-2026-10-04.md)
+and [verification record](report-qa/QA-VERIFICATION-2026-10-04.txt).
 
-Report photos are optional. JPEG, PNG, and WebP uploads are limited to 5 MiB and 24
-megapixels. The wizard previews the selected photo and shows it again on Review. Stored
-photos are oriented, resized to at most 1,800 pixels on the long edge without cropping,
-converted to JPEG, and stripped of metadata. Only the owner and match participants can
-view report photos.
+## Project status
 
-Wallet contents control the questions. Selecting CNIC and Cash shows their fields, not
-bank-card fields. An empty wallet is allowed. Up to five bank cards each have issuer and
-full 16-digit number. CNIC accepts 13 digits. A wallet remains one report. Issuing
-service and card type must agree.
-Bank or payment service names use a controlled list including HBL, MCB, UBL, Meezan Bank,
-NayaPay, SadaPay, JazzCash, and Easypaisa. Selecting Other asks for the service name.
+The report, matching, handover, dashboard, QR-label, and photo workflows are
+implemented. Draft acquisition reuses the applicable draft across concurrent
+requests, and late saves cannot recreate a published draft.
 
-Report descriptions are public to the involved users and moderation. Private matching
-answers are never rendered in match or management views. SQLite files contain these
-answers and must be protected by operating-system permissions; encryption at rest is not
-implemented.
+Still pending: password reset, profile editing, notifications, management
+pagination, login throttling, production backups, in-app help, hosted deployment,
+production security review, and production load testing.
 
-Matching requires different owners, opposite report types, open reports and the same
-category. Category 20, location 20 by haversine band, date 15/10/5, shared-word
-description up to 15, and genuine private evidence up to 30. Missing values and generic
-None/Other do not earn evidence points. At least two agreements and 70 points are
-required. Scores are suggestions, not ownership guarantees. Full rules are in
-`matching-architecture.md`.
+Production settings and deployment guidance are prepared. A public launch still
+needs the remaining deployment and security work. The authoritative tracker is
+[TODO-INCREMENTAL.md](TODO-INCREMENTAL.md).
 
-NED student-card issuer values use a controlled department catalog: CIS, CSIT, Civil
-Engineering, Mathematics, Physics, Chemistry, Metallurgical Engineering, and Other.
-BCIT is treated as a historical programme name. Handover meeting places are free text.
+## Further documentation
 
-A proposal reserves both reports. The other participant accepts the same meeting; only
-then are contacts visible. Either participant can record return at or after the meeting
-time. Rejection releases a proposed reservation. Returned records and moderation history
-persist. Management removal is an audited soft removal.
-
-PostgreSQL advisory transaction locks serialize matching and handover writes.
-Draft acquisition locks the owner's row so concurrent new-report, QR-scan, and edit
-requests reuse the same applicable draft. Late step saves cannot recreate a deleted draft.
-A shared campus deployment still requires HTTPS, login throttling, a backup
-policy, production security review, and load testing.
-
-## Delivery
-
-See [repository hygiene](docs/REPOSITORY-HYGIENE.md) for ignored local files,
-archived explorations, and safe cleanup guidance.
-
-For cloud learning, see [the cloud practice guide](docs/CLOUD-PRACTICE.md),
-`requirements-production.txt`, and `config.production`. Cloud deployment
-remains pending. Local PostgreSQL migration and concurrency
-validation are complete; see [verification results](docs/POSTGRESQL.md).
-
-`TODO-INCREMENTAL.md` is the single authoritative project tracker and holds the local demo
-credentials. Increments 1 and 2 are complete, increments 3 and 4 are pending.
-
-The CS-326 documentation set, and the PHP project it described, are both gone. The
-Django application is the only implementation.
-
-Deferred: separate child reports, social login, AI, chat, notifications by email, hosted
-deployment, and formal academic SRS/SDD packages.
+- [PostgreSQL setup and migration](docs/POSTGRESQL.md)
+- [Deployment practice guide](docs/CLOUD-PRACTICE.md)
+- [Repository hygiene and ignored files](docs/REPOSITORY-HYGIENE.md)
+- [Concurrency verification](docs/CONCURRENCY-TEST-RESULTS.md)
+- [Responsive UI verification](docs/RESPONSIVE-VERIFICATION.md)

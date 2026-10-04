@@ -195,6 +195,8 @@ body { background: rgb(var(--veil)); }
 html { color-scheme:light }
 .sr-only { position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap }
 .field-error { color:var(--error);font-size:12px;margin-top:6px }
+.field.has-error input { border-bottom-color:var(--error) }
+.field.has-error input:focus { border-bottom-color:var(--error) }
 .field input[aria-invalid=true] { border-bottom-color:var(--error) }
 .message { padding:10px 12px;margin-bottom:18px;border-left:2px solid var(--accent);background:#e4efef;font-size:13px }
 .pw-toggle { min-width:44px;min-height:44px }

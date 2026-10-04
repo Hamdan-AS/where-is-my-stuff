@@ -550,15 +550,24 @@ class QRScanTests(TestCase):
 
     def test_qr_view_returns_png(self):
         report = self.lost_report()
-        response = self.client.get(reverse("report-qr", args=[report.public_id]))
+        image_url = reverse("report-qr", args=[report.public_id])
+        response = self.client.get(image_url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "image/png")
+        self.assertTrue(response["Content-Disposition"].startswith("inline;"))
         from PIL import Image
         from io import BytesIO
-        image = Image.open(BytesIO(response.content))
+        image = Image.open(BytesIO(b"".join(response.streaming_content)))
         self.assertEqual(image.format, "PNG")
         self.assertGreaterEqual(image.width, 200)
         self.assertEqual(image.width, image.height)
+
+        download = self.client.get(image_url, {"download": "1"})
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download["Content-Type"], "image/png")
+        self.assertEqual(download["Content-Disposition"], 'attachment; filename="report-qr.png"')
+        downloaded_image = Image.open(BytesIO(b"".join(download.streaming_content)))
+        self.assertEqual(downloaded_image.format, "PNG")
 
     def test_public_report_qr_scan_requires_login_then_preserves_return_destination(self):
         report = self.lost_report()

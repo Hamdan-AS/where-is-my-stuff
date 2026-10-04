@@ -60,6 +60,10 @@ Status: pending.
 - [ ] Profile page for name, email, and password changes
 - [ ] Notifications for new matches and handover state changes
 - [ ] Pagination for management records
+- [ ] Permanent QR-label deletion for active, expired, and deactivated labels
+  - Require explicit confirmation and explain that an active printed code will stop working immediately; keep Deactivate as the reversible option.
+  - Use an authenticated, owner-scoped POST action; remove both the label record and its private QR image so the public scan URL returns 404.
+  - Cover confirmation cancel, non-owner and non-POST requests, storage cleanup, and the post-delete scan result in tests.
 - [ ] Tests for password reset, profile, notifications, and management pagination
 
 ## V2 QA follow-up (04-10-2026)

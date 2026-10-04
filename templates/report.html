@@ -29,7 +29,7 @@
       <div>
         <strong>Share this code with the finder</strong>
         <p>They sign in to start a Found report. The code does not verify who has the item.</p>
-        <a class="btn btn-secondary" href="{% url 'report-qr' report.public_id %}" download="report-qr.png">Download QR</a>
+        <a class="btn btn-secondary" href="{% url 'report-qr' report.public_id %}?download=1" download="report-qr.png">Download QR</a>
       </div>
     </div>
     {% endif %}

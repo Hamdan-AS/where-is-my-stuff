@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% if register %}Register{% else %}Login{% endif %} · Where Is My Stuff?</title>
-  <link rel="stylesheet" href="{% static 'studio-auth.css' %}?v=10">
+  <link rel="stylesheet" href="{% static 'studio-auth.css' %}?v=11">
   <script src="{% static 'auth.js' %}?v=1" defer></script>
 </head>
 <body>
@@ -21,12 +21,12 @@
       <nav class="tabs" aria-label="Account access"><a class="tab{% if not register %} active{% endif %}" href="{% url 'login' %}" {% if not register %}aria-current="page"{% endif %}>Login</a><a class="tab{% if register %} active{% endif %}" href="{% url 'register' %}" {% if register %}aria-current="page"{% endif %}>Register</a></nav>
       <h2 id="account-heading">{% if register %}Create an account{% else %}Welcome back{% endif %}</h2>
       {% for message in messages %}<div class="message" role="status">{{ message }}</div>{% endfor %}
-      <form method="post" action="{% if register %}{% url 'register' %}{% else %}{% url 'login' %}{% endif %}">
+      <form method="post" action="{% if register %}{% url 'register' %}{% else %}{% url 'login' %}{% endif %}" novalidate>
         {% csrf_token %}
         {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
         {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
         {% for field in form.visible_fields %}{% if field.name != 'remember_me' %}
-        <div class="field">
+        <div class="field{% if field.errors %} has-error{% endif %}">
           <label for="{{ field.id_for_label }}">{{ field.label }}</label>
           {% if field.field.widget.input_type == 'password' %}<div class="pw-wrap">{{ field }}<button class="pw-toggle" type="button" data-password-toggle aria-controls="{{ field.id_for_label }}" aria-label="Show {{ field.label|lower }}" aria-pressed="false" hidden>Show</button></div>{% else %}{{ field }}{% endif %}
           {% if field.errors %}<div class="field-error" id="{{ field.auto_id }}_error" role="alert">{{ field.errors }}</div>{% endif %}

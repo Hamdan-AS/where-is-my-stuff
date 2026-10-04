@@ -83,6 +83,14 @@ class Registration(UserCreationForm):
     class Meta:
         model = User
         fields = ["first_name", "email"]
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._connect_error_descriptions()
+    def _connect_error_descriptions(self):
+        for name, field in self.fields.items():
+            if self.is_bound and name in self.errors:
+                field.widget.attrs["aria-invalid"] = "true"
+                field.widget.attrs["aria-describedby"] = f"id_{name}_error"
     def clean_email(self):
         email = self.cleaned_data["email"].lower()
         if User.objects.filter(username=email).exists() or User.objects.filter(email__iexact=email).exists():
@@ -104,6 +112,10 @@ class EmailLogin(AuthenticationForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["password"].widget.attrs["placeholder"] = "Enter your password"
+        for name in self.fields:
+            if self.is_bound and name in self.errors:
+                self.fields[name].widget.attrs["aria-invalid"] = "true"
+                self.fields[name].widget.attrs["aria-describedby"] = f"id_{name}_error"
 
     def clean_username(self):
         return self.cleaned_data["username"].strip().lower()

@@ -411,7 +411,14 @@ def management(request):
 def report_qr_image(request, public_id):
     report = get_object_or_404(Report, public_id=public_id)
     url = request.build_absolute_uri(reverse("report-found", args=[report.public_id]))
-    return HttpResponse(generate_qr_png(url).getvalue(), content_type="image/png")
+    response = FileResponse(
+        generate_qr_png(url),
+        content_type="image/png",
+        as_attachment=request.GET.get("download") == "1",
+        filename="report-qr.png",
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 @login_required
 def report_found(request, public_id):

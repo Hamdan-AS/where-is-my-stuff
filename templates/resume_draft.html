@@ -5,18 +5,25 @@
   <div class="page-head tight">
     <div>
       <span class="eyebrow">Unfinished draft</span>
-      <h1>Continue or start new?</h1>
+      <h1>Resume draft</h1>
       <p class="muted">Saved {{ draft.updated_at|date:"d M Y, H:i" }}{% if draft.data.title %}, titled "{{ draft.data.title }}"{% endif %}.</p>
     </div>
   </div>
 
-  <p class="muted">You already have an unfinished{% if draft.data.kind %} {{ draft.data.kind }}{% endif %} draft.</p>
-  <p>Do you want to continue the{% if draft.data.kind %} {{ draft.data.kind }}{% endif %} draft or fill a new one?</p>
 
-  <form method="post" action="{% url 'create' %}" class="actions">
+  <p class="notice warning" id="discard-warning">Starting a new report permanently discards this saved draft and its photo. Continue the draft to keep your work.</p>
+
+  <form method="post" action="{% url 'create' %}">
     {% csrf_token %}
-    <a class="button secondary" href="{% url 'draft' draft.pk %}">Continue the{% if draft.data.kind %} {{ draft.data.kind }}{% endif %} draft</a>
-    <button name="action" value="new">Fill a new one</button>
+    <input type="hidden" name="discard_draft_id" value="{{ draft.pk }}">
+    <div class="field">
+      <label for="confirm-discard"><input type="checkbox" id="confirm-discard" name="confirm_discard" value="yes" required aria-describedby="discard-warning{% if discard_error %} discard-error{% endif %}"> I understand that this saved draft will be permanently discarded.</label>
+      {% if discard_error %}<p class="field-error" id="discard-error" role="alert">{{ discard_error }}</p>{% endif %}
+    </div>
+    <div class="actions">
+      <a class="button secondary" href="{% url 'draft' draft.pk %}">Continue the{% if draft.data.kind %} {{ draft.data.kind }}{% endif %} draft</a>
+      <button name="action" value="new">Discard draft and start new</button>
+    </div>
   </form>
 </section>
 {% endblock %}

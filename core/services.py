@@ -1,11 +1,22 @@
 import re
 from datetime import datetime
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Q
 from django.utils import timezone
-from .models import Report, Match, Event
+from .models import Report, Match, Event, Draft, User
 from .forms import TypeForm, DetailsForm, LocationForm, MatchingForm
+
+@transaction.atomic
+def get_or_create_draft(user, report=None, defaults=None):
+    # Lock an existing owner row: locking an empty draft query cannot stop
+    # another request from inserting its own first draft on PostgreSQL.
+    User.objects.select_for_update().get(pk=user.pk)
+    draft = Draft.objects.filter(owner=user, report=report).order_by("-updated_at", "-pk").first()
+    if draft is not None:
+        return draft, False
+    return Draft.objects.create(owner=user, report=report, **(defaults or {})), True
+
 
 def haversine_km(lat1, lng1, lat2, lng2):
     from math import asin, cos, radians, sin, sqrt
@@ -44,7 +55,10 @@ def validated(data):
         if isinstance(form, MatchingForm):
             result["answers"] = form.cleaned_data
         else:
-            result.update(form.cleaned_data)
+            cleaned = dict(form.cleaned_data)
+            cleaned.pop("photo", None)
+            cleaned.pop("remove_photo", None)
+            result.update(cleaned)
     return result
 
 def score(left, right):
@@ -84,7 +98,21 @@ def score(left, right):
     total_score = sum(parts.values())
     return (total_score, parts) if agreed >= 2 and total_score >= 70 else None
 
+def lock_report_workflow():
+    """Serialize matching/reservations across PostgreSQL workers until commit.
+
+    SQLite already serializes writes with IMMEDIATE transactions. One advisory
+    lock preserves that behaviour for this small app without deadlock-prone
+    ordering between competing match pairs. Reads remain concurrent.
+    """
+    if connection.vendor == "postgresql":
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_xact_lock(%s)", [3272026001])
+
+
+@transaction.atomic
 def recalculate(report):
+    lock_report_workflow()
     Match.objects.filter(Q(lost=report) | Q(found=report), state="Possible Match").delete()
     candidates = Report.objects.filter(category=report.category, status="Open", reserved=False).exclude(owner=report.owner).exclude(kind=report.kind)
     for candidate in candidates:
@@ -100,15 +128,32 @@ def recalculate(report):
 
 @transaction.atomic
 def publish(draft, user):
+    lock_report_workflow()
+    try:
+        draft = Draft.objects.select_for_update().get(pk=draft.pk, owner=user)
+    except Draft.DoesNotExist:
+        raise ValidationError("This draft has already been submitted or removed.")
     data = validated(draft.data)
+    uploaded_photo = draft.photo.name if draft.photo else ""
+    remove_photo = bool(draft.data.get("remove_photo"))
     if draft.report_id:
         report = Report.objects.get(pk=draft.report_id, owner=user)
         if report.status != "Open" or report.reserved:
             raise ValidationError("Editing is locked because this report is closed or has a handover.")
+        previous_photo = report.photo.name
+        if uploaded_photo:
+            report.photo.name = uploaded_photo
+        elif remove_photo:
+            report.photo.name = ""
         for key, value in data.items():
             setattr(report, key, value)
         report.save()
+        if previous_photo and previous_photo != report.photo.name:
+            storage = report.photo.storage
+            transaction.on_commit(lambda: storage.delete(previous_photo))
     else:
+        if uploaded_photo:
+            data["photo"] = uploaded_photo
         report = Report.objects.create(owner=user, **data)
     Event.objects.create(report=report, actor=user, text="Report updated" if draft.report_id else "Report created")
     recalculate(report)
@@ -117,6 +162,7 @@ def publish(draft, user):
 
 @transaction.atomic
 def transition(pk, user, action, meeting=None):
+    lock_report_workflow()
     match = Match.objects.select_related("lost", "found").get(pk=pk)
     if user.pk not in (match.lost.owner_id, match.found.owner_id):
         raise ValidationError("Only participants can change this match.")
@@ -171,6 +217,7 @@ def transition(pk, user, action, meeting=None):
 def moderate(report, user, action):
     if not user.is_staff or action not in ("close", "remove"):
         raise ValidationError("Moderator access required.")
+    lock_report_workflow()
     report.refresh_from_db()
     if report.reserved or report.status != "Open":
         raise ValidationError("Only open reports without a handover can be moderated.")

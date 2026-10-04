@@ -23,11 +23,40 @@ if (form) {
     const inspect = () => {
       const risk = /[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\d[ -]?){10,}|\b(?:cnic|nic|card|account|last .*digits)\b[^.\n]{0,80}\d/i.test(description.value);
       hint.textContent = risk ? 'Possible private information: remove contact details and identifiers before continuing.' : 'Use visible features such as colour, brand, and distinguishing marks.';
+      hint.hidden = !risk;
       hint.style.color = risk ? '#b12b39' : '';
       description.setCustomValidity(risk ? 'Remove private information from the public description.' : '');
     };
     description.addEventListener('input', inspect);
     inspect();
+  }
+
+  const photoInput = form.querySelector('[name="photo"]');
+  const photoPreview = form.querySelector('[data-photo-preview]');
+  const photoPreviewImage = photoPreview && photoPreview.querySelector('[data-photo-preview-image]');
+  const photoPreviewName = photoPreview && photoPreview.querySelector('[data-photo-preview-name]');
+  const existingPhoto = form.querySelector('.existing-photo');
+  const removePhoto = form.querySelector('[name="remove_photo"]');
+  let photoPreviewUrl = null;
+  const updatePhotoSelection = () => {
+    const selected = photoInput && photoInput.files && photoInput.files[0];
+    if (photoPreview) photoPreview.hidden = !selected;
+    if (selected && photoPreviewImage) {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+      photoPreviewUrl = URL.createObjectURL(selected);
+      photoPreviewImage.src = photoPreviewUrl;
+      photoPreviewImage.alt = 'Preview of ' + selected.name;
+      if (photoPreviewName) photoPreviewName.textContent = selected.name;
+    }
+    if (selected && removePhoto) removePhoto.checked = false;
+    if (existingPhoto) existingPhoto.hidden = Boolean(selected || (removePhoto && removePhoto.checked));
+  };
+  if (photoInput && photoPreview) {
+    photoInput.addEventListener('change', updatePhotoSelection);
+    if (removePhoto) removePhoto.addEventListener('change', updatePhotoSelection);
+    window.addEventListener('pagehide', () => {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    }, { once: true });
   }
 }
 
@@ -49,6 +78,10 @@ if (picker && typeof L !== 'undefined') {
   const saved = !isNaN(savedLat) && !isNaN(savedLng) && Math.abs(savedLat) <= 90 && Math.abs(savedLng) <= 180;
   const position = saved ? [savedLat, savedLng] : [24.8607, 67.0011];
   const map = L.map(mapEl).setView(position, saved ? 15 : 13);
+  // Recalculate tiles and pin placement when the available layout width changes.
+  const mapResize = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+  mapResize.observe(mapEl);
+  window.addEventListener('pagehide', () => mapResize.disconnect(), { once: true });
   L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
     maxZoom: 18,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -113,6 +146,21 @@ if (meetingForm) {
     error.setAttribute('role', 'alert');
     meetingInput.insertAdjacentElement('afterend', error);
 
+    const pakistanParts = value => Object.fromEntries(new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Karachi', hourCycle: 'h12',
+      day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+    }).formatToParts(value).filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+    const setNextAvailableHour = () => {
+      const next = new Date(Date.now() + 60 * 60 * 1000);
+      next.setMinutes(0, 0, 0);
+      const parts = pakistanParts(next);
+      meetingInput.value = `${parts.day}-${parts.month}-${parts.year} ${parts.hour}:${parts.minute} ${parts.dayPeriod || 'AM'}`;
+      meetingInput.dispatchEvent(new Event('input', {bubbles: true}));
+    };
+    const meetingNow = meetingForm.querySelector('[data-meeting-now]');
+    if (meetingNow) meetingNow.addEventListener('click', setNextAvailableHour);
+    if (!meetingInput.value) setNextAvailableHour();
+
     const setMeetingError = message => {
       meetingInput.setCustomValidity(message);
       meetingInput.classList.toggle('has-error', Boolean(message));
@@ -172,24 +220,58 @@ document.querySelectorAll('[data-restore-match]').forEach(restoreForm => {
 
 const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
 const sidebarClose = document.querySelector('[data-sidebar-close]');
+const sidebar = document.getElementById('app-sidebar');
+const narrowLayout = window.matchMedia('(max-width:900px)');
+const syncSidebar = () => {
+  const isOpen = document.body.classList.contains('sidebar-open');
+  if (sidebar) sidebar.inert = narrowLayout.matches && !isOpen;
+  document.querySelectorAll('.workspace, .mobile-bar').forEach(element => {
+    element.inert = narrowLayout.matches && isOpen;
+  });
+};
 const closeSidebar = () => {
   document.body.classList.remove('sidebar-open');
   if (sidebarToggle) sidebarToggle.setAttribute('aria-expanded', 'false');
+  syncSidebar();
 };
 
 if (sidebarToggle) {
   sidebarToggle.addEventListener('click', () => {
     const isOpen = document.body.classList.toggle('sidebar-open');
     sidebarToggle.setAttribute('aria-expanded', String(isOpen));
+    syncSidebar();
+    if (isOpen && sidebar) sidebar.querySelector('[data-sidebar-dismiss]').focus();
   });
 }
 
 if (sidebarClose) {
-  sidebarClose.addEventListener('click', closeSidebar);
+  sidebarClose.addEventListener('click', () => { closeSidebar(); sidebarToggle.focus(); });
 }
+document.querySelector('[data-sidebar-dismiss]')?.addEventListener('click', () => {
+  closeSidebar();
+  sidebarToggle.focus();
+});
+narrowLayout.addEventListener('change', closeSidebar);
+syncSidebar();
 
 document.querySelectorAll('.side-nav a').forEach(link => {
   link.addEventListener('click', closeSidebar);
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Tab' && document.body.classList.contains('sidebar-open') && sidebar) {
+    const controls = [...sidebar.querySelectorAll('a[href], button, input')].filter(element => !element.disabled && element.getClientRects().length);
+    const first = controls[0], last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
+  }
+  if (event.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
+    closeSidebar();
+    if (sidebarToggle) sidebarToggle.focus();
+  }
 });
 
 const reportsToggle = document.querySelector('[data-reports-toggle]');

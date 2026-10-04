@@ -1,4 +1,5 @@
 import re
+from PIL import Image
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.core.exceptions import ValidationError
@@ -96,7 +97,7 @@ class Registration(UserCreationForm):
 
 class EmailLogin(AuthenticationForm):
     username = forms.CharField(label="Email", widget=forms.EmailInput(attrs={
-        "autocomplete": "username", "placeholder": "Yahan Apni email dalo", "autofocus": True,
+        "autocomplete": "username", "placeholder": "you@example.com", "autofocus": True,
     }))
     remember_me = forms.BooleanField(required=False, label="Remember me")
 
@@ -109,7 +110,9 @@ class EmailLogin(AuthenticationForm):
 
 class TypeForm(forms.Form):
     kind = forms.ChoiceField(choices=choices(["Lost", "Found"]), widget=forms.RadioSelect)
-    title = forms.CharField(max_length=120, validators=[public_short])
+    title = forms.CharField(max_length=120, validators=[public_short], label="Item title",
+        widget=forms.TextInput(attrs={"placeholder": "e.g. Black backpack", "list": "item-title-suggestions", "autocomplete": "off"}),
+        help_text="Use a clear item name and useful detail, such as colour or brand. You can edit this suggestion.")
     category = forms.ChoiceField(choices=choices(CATEGORIES))
     event_date = forms.DateField(input_formats=["%d-%m-%Y"], initial=timezone.localdate,
         widget=forms.DateInput(format="%d-%m-%Y", attrs={"placeholder": "DD-MM-YYYY"}))
@@ -120,14 +123,76 @@ class TypeForm(forms.Form):
         return value
 
 class DetailsForm(forms.Form):
-    description = forms.CharField(max_length=2000, widget=forms.Textarea(attrs={"rows": 3}), validators=[public_text], label="Public description")
-    contact = forms.CharField(max_length=120, help_text="Shared only after both participants accept a handover.")
+    description = forms.CharField(
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 3, "placeholder": "Describe its colour, visible features, and what happened."}),
+        validators=[public_text],
+        label="Add details about the item",
+        help_text="Describe its colour, visible features, and what happened. Keep card numbers, cash amounts, and hidden contents for the private matching questions.",
+    )
+    contact = forms.CharField(
+        max_length=11,
+        min_length=11,
+        label="Phone number",
+        help_text="Enter exactly 11 digits starting with 0. Shared only after both participants accept a handover.",
+        widget=forms.TextInput(attrs={
+            "inputmode": "numeric",
+            "autocomplete": "tel",
+            "placeholder": "03001234567",
+            "pattern": r"0[0-9]{10}",
+            "maxlength": 11,
+        }),
+    )
+    photo = forms.ImageField(
+        required=False,
+        label="Item photo (optional)",
+        help_text="JPEG, PNG or WebP. Up to 5 MiB and 24 megapixels. The full image is kept uncropped, resized for display, and shown only to you and people in your match.",
+        widget=forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png,image/webp"}),
+    )
+    remove_photo = forms.BooleanField(required=False, label="Remove the current photo")
+
+    def clean_photo(self):
+        photo = self.cleaned_data.get("photo")
+        if not photo:
+            return photo
+        if photo.size > 5 * 1024 * 1024:
+            raise ValidationError("Choose an image no larger than 5 MiB.")
+        image = photo.image
+        if image.format not in {"JPEG", "PNG", "WEBP"}:
+            raise ValidationError("Upload a JPEG, PNG, or WebP image.")
+        width, height = image.size
+        if width > 6000 or height > 6000 or width * height > 24_000_000:
+            raise ValidationError("This image is too large. Choose one under 6,000 pixels per side and 24 megapixels total.")
+        # ImageField verifies headers, but truncated JPEG pixel data can still
+        # fail later during normalization. Decode before accepting the upload.
+        try:
+            photo.seek(0)
+            with Image.open(photo) as decoded:
+                decoded.load()
+        except (OSError, ValueError, SyntaxError) as exc:
+            raise ValidationError("This image is damaged or incomplete. Choose another JPEG, PNG, or WebP image.") from exc
+        finally:
+            photo.seek(0)
+        return photo
+
     def clean_contact(self):
-        value = self.cleaned_data["contact"]
-        if "@" in value:
-            forms.EmailField().clean(value)
-        elif not re.fullmatch(r"\+?[0-9 ()-]{7,24}", value) or not 7 <= len(re.sub(r"\D", "", value)) <= 15:
-            raise ValidationError("Enter a valid email or phone number.")
+        value = self.cleaned_data["contact"].strip()
+        if not re.fullmatch(r"0[0-9]{10}", value):
+            raise ValidationError("Enter exactly 11 digits starting with 0, for example 03001234567.")
+        return value
+
+
+class QRLabelForm(forms.Form):
+    item_name = forms.CharField(max_length=80, validators=[public_short], label="Item name",
+        widget=forms.TextInput(attrs={"placeholder": "e.g. Blue backpack"}))
+    contact_phone = forms.CharField(max_length=11, min_length=11, label="Phone number shown to a finder",
+        widget=forms.TextInput(attrs={"inputmode": "numeric", "autocomplete": "tel", "placeholder": "03001234567", "pattern": r"0[0-9]{10}", "maxlength": 11}),
+        help_text="Anyone who scans an active label can see and call this number.")
+
+    def clean_contact_phone(self):
+        value = self.cleaned_data["contact_phone"].strip()
+        if not re.fullmatch(r"0[0-9]{10}", value):
+            raise ValidationError("Enter exactly 11 digits starting with 0, for example 03001234567.")
         return value
 
 class LocationForm(forms.Form):
@@ -199,7 +264,6 @@ def schema(category, data):
             "Electronics": [("kind", "Device", ["Phone", "Laptop", "Tablet", "Earbuds", "Charger", "Other"]), ("case", "Case", ["None", "Hard", "Soft", "Sleeve"])],
             "Documents": [("kind", "Document", ["Notebook", "Assignment", "Certificate", "Folder", "Other"]), ("holder", "Holder", ["None", "Folder", "Envelope"])],
             "Cash / Money": [("amount", "Approximate amount", ["Below Rs. 500", "Rs. 500 to 1,999", "Rs. 2,000 to 4,999", "Rs. 5,000+"]), ("notes", "Denominations", ["Rs. 100", "Rs. 500", "Rs. 1,000", "Mixed notes"])],
-            "Other": [("material", "Material", ["Metal", "Plastic", "Fabric", "Leather", "Paper", "Other"]), ("size", "Size", ["Small", "Medium", "Large"])],
         }
         for key, label, options in specs.get(category, []):
             select(key, label, options)

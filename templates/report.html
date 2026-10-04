@@ -13,6 +13,8 @@
     <span class="badge {{ report.status|lower }}">{{ report.status }}</span>
   </div>
 
+  {% if report.photo %}<figure class="report-photo"><img src="{% url 'report-photo' report.pk %}" alt="Photo of {{ report.title }}"><figcaption>Visible to you and people in this report’s match.</figcaption></figure>{% endif %}
+
   <dl class="meta-list wide">
     <dt>Description</dt>
     <dd>{{ report.description }}</dd>
@@ -25,8 +27,8 @@
     <div class="qr-box">
       <img src="{% url 'report-qr' report.public_id %}" alt="Scan if found" width="160" height="160">
       <div>
-        <strong>Found this item?</strong>
-        <p class="muted">A finder scans this to file a quick found report and arrange the handover.</p>
+        <strong>Share this code with the finder</strong>
+        <p>They sign in to start a Found report. The code does not verify who has the item.</p>
         <a class="btn btn-secondary" href="{% url 'report-qr' report.public_id %}" download="report-qr.png">Download QR</a>
       </div>
     </div>
@@ -45,7 +47,6 @@
   <div class="section-head">
     <div>
       <h2>Matches for this report</h2>
-      <p class="muted">Open a comparison before arranging a handover.</p>
     </div>
   </div>
   {% for match in related_matches %}
@@ -64,7 +65,6 @@
   <div class="section-head">
     <div>
       <h2>Activity log</h2>
-      <p class="muted">Status changes for this report.</p>
     </div>
   </div>
   {% for event in events %}

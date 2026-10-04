@@ -2,98 +2,51 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Where Is My Stuff? | {% if register %}Register{% else %}Login{% endif %}</title>
-  <link rel="stylesheet" href="{% static 'auth.css' %}?v=3">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if register %}Register{% else %}Login{% endif %} · Where Is My Stuff?</title>
+  <link rel="stylesheet" href="{% static 'studio-auth.css' %}?v=10">
   <script src="{% static 'auth.js' %}?v=1" defer></script>
 </head>
 <body>
-  <div class="stage">
-    <header class="topbar">
-      <a class="brand-link" href="{% url 'login' %}" aria-label="Where Is My Stuff? home">
-        <span class="mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 8V6a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3v2" stroke="#16223F" stroke-width="1.6" stroke-linecap="round"/>
-            <rect x="4" y="8" width="16" height="12" rx="2.4" stroke="#16223F" stroke-width="1.6"/>
-            <path d="M12 12v4" stroke="#AD7C2E" stroke-width="1.6" stroke-linecap="round"/>
-          </svg>
-        </span>
-        <span class="wordmark">
-          <span class="name">Where Is My Stuff?</span>
-          <span class="sub">Lost &amp; Found</span>
-        </span>
-      </a>
-    </header>
-
-    <main class="main">
-      <section class="copy" aria-labelledby="intro-heading">
-        <span class="tag-chip"><span class="dot" aria-hidden="true"></span>Lost &amp; Found Service</span>
-        <h1 id="intro-heading">Reunite with what<br>you've misplaced.</h1>
-        <p class="lede">Report something you lost or found. We check it against every other report and help you get it back.</p>
-        <div class="stat-row" aria-label="How it works">
-          <div class="stat"><b>Report</b><span>Lost or found items</span></div>
-          <div class="stat"><b>Review</b><span>Possible matches</span></div>
-          <div class="stat"><b>Arrange</b><span>Safe handovers</span></div>
+  <div class="page">
+  <div class="rail" aria-hidden="true"><span>Where Is My Stuff?</span></div>
+  <div class="main">
+  <header class="top"><a class="brand" href="{% url 'login' %}">Where Is My Stuff? <small>Lost &amp; Found</small></a></header>
+  <main class="cols">
+    <section class="head" aria-labelledby="intro-heading">
+      <h1 id="intro-heading">Reunite with what you've misplaced.</h1>
+      <p class="lede">Report something you lost or found. We check it against every other report and help you get it back.</p>
+    </section>
+    <section class="account" aria-labelledby="account-heading">
+      <nav class="tabs" aria-label="Account access"><a class="tab{% if not register %} active{% endif %}" href="{% url 'login' %}" {% if not register %}aria-current="page"{% endif %}>Login</a><a class="tab{% if register %} active{% endif %}" href="{% url 'register' %}" {% if register %}aria-current="page"{% endif %}>Register</a></nav>
+      <h2 id="account-heading">{% if register %}Create an account{% else %}Welcome back{% endif %}</h2>
+      {% for message in messages %}<div class="message" role="status">{{ message }}</div>{% endfor %}
+      <form method="post" action="{% if register %}{% url 'register' %}{% else %}{% url 'login' %}{% endif %}">
+        {% csrf_token %}
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        {% if form.non_field_errors %}<div class="form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+        {% for field in form.visible_fields %}{% if field.name != 'remember_me' %}
+        <div class="field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {% if field.field.widget.input_type == 'password' %}<div class="pw-wrap">{{ field }}<button class="pw-toggle" type="button" data-password-toggle aria-controls="{{ field.id_for_label }}" aria-label="Show {{ field.label|lower }}" aria-pressed="false" hidden>Show</button></div>{% else %}{{ field }}{% endif %}
+          {% if field.errors %}<div class="field-error" id="{{ field.auto_id }}_error" role="alert">{{ field.errors }}</div>{% endif %}
+          {% if field.help_text %}<div class="sr-only" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</div>{% endif %}
         </div>
-        <p class="privacy-note"><strong>We value your privacy. Your contact details are shared only after both people accept a handover.</strong></p>
-      </section>
-
-      <section class="card" aria-labelledby="account-heading">
-        <nav class="tabs" aria-label="Account access">
-          <a class="tab{% if not register %} active{% endif %}" href="{% url 'login' %}"{% if not register %} aria-current="page"{% endif %}>Login</a>
-          <a class="tab{% if register %} active{% endif %}" href="{% url 'register' %}"{% if register %} aria-current="page"{% endif %}>Register</a>
-        </nav>
-        <div class="card-body">
-          <h2 id="account-heading">{% if register %}Create an account{% else %}Welcome back{% endif %}</h2>
-          <p class="hint">{% if register %}Register with your name and email address.{% else %}Log in with the email you registered.{% endif %}</p>
-          {% for message in messages %}
-            <p class="message" role="status">{{ message }}</p>
-          {% endfor %}
-
-          <form method="post" action="{% if register %}{% url 'register' %}{% else %}{% url 'login' %}{% endif %}">
-            {% csrf_token %}
-            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-            {% if form.non_field_errors %}
-              <div class="form-errors" role="alert">{{ form.non_field_errors }}</div>
-            {% endif %}
-            {% for field in form.visible_fields %}
-              {% if field.name != 'remember_me' %}
-                <div class="field">
-                  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                  {% if field.field.widget.input_type == 'password' %}
-                    <div class="pw-wrap">
-                      {{ field }}
-                      <button class="pw-toggle" type="button" data-password-toggle aria-controls="{{ field.id_for_label }}" aria-label="Show {{ field.label|lower }}" aria-pressed="false" hidden>Show</button>
-                    </div>
-                  {% else %}
-                    {{ field }}
-                  {% endif %}
-                  {% if field.errors %}<div class="field-errors" id="{{ field.auto_id }}_error" role="alert">{{ field.errors }}</div>{% endif %}
-                  {% if field.help_text %}<div class="helptext" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</div>{% endif %}
-                </div>
-              {% endif %}
-            {% endfor %}
-            {% if not register %}
-              <div class="row-between">
-                <label class="remember" for="{{ form.remember_me.id_for_label }}">{{ form.remember_me }} Remember me</label>
-                {% url 'password_reset' as password_reset_url %}
-                {% if password_reset_url %}<a href="{{ password_reset_url }}">Forgot password?</a>{% endif %}
-              </div>
-            {% endif %}
-            <button class="btn" type="submit">{% if register %}Register{% else %}Log in{% endif %}</button>
-          </form>
-          <p class="foot-note">
-            {% if register %}Already registered? <a href="{% url 'login' %}">Log in</a>
-            {% else %}New here? <a href="{% url 'register' %}">Create an account</a>{% endif %}
-          </p>
-        </div>
-      </section>
-    </main>
-
-    <footer class="auth-footer">
-      <p class="disclaimer">We cannot guarantee the recovery of your item.</p>
-    </footer>
-  </div>
+        {% endif %}{% endfor %}
+        {% if not register %}<label class="remember" for="{{ form.remember_me.id_for_label }}">{{ form.remember_me }} Remember me</label>{% endif %}
+        <button class="submit" type="submit">{% if register %}Register{% else %}Log in{% endif %}</button>
+      </form>
+    </section>
+    <section class="more" aria-label="About this service">
+      <ul class="steps" aria-label="How it works">
+        <li><span class="step-name">Report</span>Lost or found items</li>
+        <li><span class="step-name">Review</span>Possible matches</li>
+        <li><span class="step-name">Arrange</span>Safe handovers</li>
+      </ul>
+      <p class="privacy"><strong>We value your privacy.</strong> Your contact details are shared only after both people accept a handover.</p>
+    </section>
+  </main>
+  <footer class="foot"><p>We cannot guarantee the recovery of your item.</p></footer>
+  </div></div>
 </body>
 </html>

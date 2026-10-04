@@ -107,7 +107,7 @@ class PublicFieldScreeningTests(TestCase):
         client.get(reverse("create"))
         draft = Draft.objects.get(owner=owner, report__isnull=True)
         url = reverse("draft", args=[draft.pk])
-        client.post(url + "?step=1", {"kind": "Lost", "title": "Wallet", "category": "Other", "event_date": timezone.localdate().strftime("%d-%m-%Y")})
+        client.post(url + "?step=1", {"kind": "Lost", "title": "Wallet", "category": "Bag", "event_date": timezone.localdate().strftime("%d-%m-%Y")})
         response = client.post(url + "?step=2", {"description": "call me 03001234567", "contact": "03009999999"})
         draft.refresh_from_db()
         self.assertEqual(response.status_code, 200)
@@ -123,6 +123,20 @@ class PublicFieldScreeningTests(TestCase):
         self.assertTrue(LocationForm({"location": "Main Gate", **coords, "location_detail": "c" * 255}).is_valid())
         self.assertFalse(LocationForm({"location": "Main Gate", **coords, "location_detail": "c" * 256}).is_valid())
         self.assertFalse(DetailsForm({"description": "a" * 2000, "contact": "x" * 121}).is_valid())
+
+    def test_step_one_accepts_original_categories_and_guides_clear_titles(self):
+        from .forms import CATEGORIES
+        form = TypeForm({"kind": "Found", "title": "Handbag", "category": "Bag",
+                         "event_date": timezone.localdate().strftime("%d-%m-%Y")})
+        self.assertTrue(form.is_valid())
+        self.assertIn("clear item name", form.fields["title"].help_text)
+        self.assertEqual(form.fields["title"].widget.attrs["list"], "item-title-suggestions")
+        for category in ["Wallet / Purse", "Cards / IDs", "Keys", "Electronics", "Bag", "Documents", "Cash / Money", "Other"]:
+            with self.subTest(category=category):
+                self.assertTrue(TypeForm({"kind": "Lost", "title": "Lost item", "category": category,
+                                         "event_date": timezone.localdate().strftime("%d-%m-%Y")}).is_valid())
+        self.assertFalse(TypeForm({"kind": "Lost", "title": "Lost item", "category": "Unknown category",
+                                  "event_date": timezone.localdate().strftime("%d-%m-%Y")}).is_valid())
 
     def test_allowed_characters_accept_unicode_and_reject_pure_symbols(self):
         public_text("Black jacket — zipper, côte, café 2026, naïve edit")
@@ -151,6 +165,28 @@ class FlowTests(TestCase):
         client.post("/logout/")
         self.assertEqual(client.post("/login/", {"username": "sara@example.com", "password": "Correct-horse-991!"}).status_code, 302)
 
+    def test_details_summary_follows_step_one_without_changing_description(self):
+        draft = Draft.objects.create(owner=self.a, data={
+            "kind": "Lost", "title": "Keys", "category": "Keys",
+            "event_date": timezone.localdate().isoformat(),
+            "description": "Silver keyring with a blue tag",
+        })
+        url = reverse("draft", args=[draft.pk])
+        response = self.client.get(url + "?step=2")
+        self.assertContains(response, "You lost a set of keys.")
+        self.assertContains(response, "Add details about the item")
+        self.assertContains(response, "Keep card numbers, cash amounts, and hidden contents")
+        self.assertEqual(response.context["form"]["description"].value(), "Silver keyring with a blue tag")
+        self.client.post(url + "?step=1", {
+            "kind": "Found", "title": "Cash", "category": "Cash / Money",
+            "event_date": timezone.localdate().strftime("%d-%m-%Y"),
+        })
+        response = self.client.get(url + "?step=2")
+        self.assertContains(response, "You found some cash.")
+        self.assertNotContains(response, "You lost a set of keys.")
+        draft.refresh_from_db()
+        self.assertEqual(draft.data["description"], "Silver keyring with a blue tag")
+
     def test_full_wizard_and_single_publication(self):
         response = self.client.get("/reports/new/")
         self.assertEqual(response.status_code, 302)
@@ -174,13 +210,67 @@ class FlowTests(TestCase):
         response = self.client.get(reverse("create"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Continue the Lost draft")
-        self.assertContains(response, "Fill a new one")
+        self.assertContains(response, "Discard draft and start new")
+        self.assertContains(response, "permanently discards this saved draft and its photo")
         self.assertTrue(Draft.objects.filter(pk=draft.pk).exists())
         response = self.client.post(reverse("create"), {"action": "new"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Confirm that you want to discard")
+        draft.refresh_from_db()
+        self.assertEqual(draft.data["title"], "Old keys")
+        response = self.client.post(reverse("create"), {
+            "action": "new", "confirm_discard": "yes", "discard_draft_id": str(draft.pk),
+        })
         self.assertRedirects(response, reverse("create"), fetch_redirect_response=False)
         self.assertFalse(Draft.objects.filter(pk=draft.pk).exists())
         self.client.get(reverse("create"))
         self.assertEqual(Draft.objects.filter(owner=self.a, report__isnull=True).count(), 1)
+
+    def test_stale_discard_confirmation_keeps_current_draft(self):
+        draft = Draft.objects.create(owner=self.a, data={"title": "Keep these keys"})
+        for submitted_id in (None, str(draft.pk + 1)):
+            with self.subTest(submitted_id=submitted_id):
+                payload = {"action": "new", "confirm_discard": "yes"}
+                if submitted_id:
+                    payload["discard_draft_id"] = submitted_id
+                response = self.client.post(reverse("create"), payload)
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(Draft.objects.filter(pk=draft.pk).exists())
+
+    def test_edit_preserves_saved_location_and_matching_answers(self):
+        report = self.report(self.a, "Lost")
+        report.refresh_from_db()
+        response = self.client.post(reverse("edit", args=[report.pk]))
+        url = response.url
+        location = self.client.get(url + "?step=3").context["form"]
+        self.assertEqual(location["location"].value(), report.location)
+        self.assertEqual(location["location_detail"].value(), report.location_detail)
+        self.assertEqual(location["lat"].value(), str(report.lat))
+        self.assertEqual(location["lng"].value(), str(report.lng))
+        matching = self.client.get(url + "?step=4").context["form"]
+        for key, value in self.answers.items():
+            self.assertEqual(matching[key].value(), value)
+        response = self.client.post(url + "?step=4", self.answers)
+        self.assertRedirects(response, url + "?step=5", fetch_redirect_response=False)
+
+    def test_wizard_displays_actionable_validation_errors(self):
+        draft = Draft.objects.create(owner=self.a, data={
+            "kind": "Lost", "title": "Keys", "category": "Keys",
+            "event_date": timezone.localdate().isoformat(), "description": "Silver keys",
+        })
+        url = reverse("draft", args=[draft.pk])
+        response = self.client.post(url + "?step=1", {
+            "kind": "Lost", "title": "Keys", "category": "Keys",
+            "event_date": (timezone.localdate() + timedelta(days=1)).strftime("%d-%m-%Y"),
+        })
+        self.assertContains(response, "Enter a real date between 2000 and today.")
+        response = self.client.post(url + "?step=2", {"description": "Silver keys", "contact": "123456"})
+        self.assertContains(response, "at least 11 characters")
+        response = self.client.post(url + "?step=3", {
+            "location": "Library", "location_detail": "Near entrance", "lat": "91", "lng": "181",
+        })
+        self.assertContains(response, "less than or equal to 90")
+        self.assertContains(response, "less than or equal to 180")
 
     def test_create_prompt_omits_kind_for_blank_draft(self):
         Draft.objects.create(owner=self.a)
@@ -463,6 +553,19 @@ class QRScanTests(TestCase):
         response = self.client.get(reverse("report-qr", args=[report.public_id]))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "image/png")
+        from PIL import Image
+        from io import BytesIO
+        image = Image.open(BytesIO(response.content))
+        self.assertEqual(image.format, "PNG")
+        self.assertGreaterEqual(image.width, 200)
+        self.assertEqual(image.width, image.height)
+
+    def test_public_report_qr_scan_requires_login_then_preserves_return_destination(self):
+        report = self.lost_report()
+        scan_url = reverse("report-found", args=[report.public_id])
+        response = self.client.get(scan_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, f"/login/?next={scan_url}")
 
     def test_found_view_requires_login(self):
         report = self.lost_report()
@@ -502,12 +605,30 @@ class QRScanTests(TestCase):
         self.assertRedirects(response, reverse("report", args=[report.pk]))
         self.assertFalse(Draft.objects.filter(owner=self.owner, report__isnull=True).exists())
 
+    def test_second_unverified_account_can_seed_a_found_draft_from_the_same_qr(self):
+        # Accounts are not real-world identities. The QR seeds a report but does
+        # not prove possession, so a person controlling another account can do this.
+        report = self.lost_report()
+        second_account = User.objects.create_user(
+            username="second-owner-identity@example.com",
+            email="second-owner-identity@example.com",
+            password="Correct-horse-763!",
+        )
+        self.client.force_login(second_account)
+        response = self.client.get(reverse("report-found", args=[report.public_id]))
+        self.assertEqual(response.status_code, 302)
+        draft = Draft.objects.get(owner=second_account, report__isnull=True)
+        self.assertEqual(draft.data["kind"], "Found")
+        self.assertFalse(Report.objects.filter(owner=second_account).exists())
+
     def test_qr_box_only_renders_on_lost_reports(self):
         lost = self.lost_report()
         found = self.lost_report(kind="Found", title="Black backpack seen", contact=self.finder.email)
         self.client.force_login(self.owner)
         page = self.client.get(reverse("report", args=[lost.pk]))
         self.assertContains(page, reverse("report-qr", args=[lost.public_id]))
+        self.assertContains(page, "Share this code with the finder")
+        self.assertContains(page, "does not verify who has the item")
         page = self.client.get(reverse("report", args=[found.pk]))
         self.assertNotContains(page, reverse("report-qr", args=[found.public_id]))
 

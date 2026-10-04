@@ -5,7 +5,6 @@
   <div>
     <span class="eyebrow">Staff</span>
     <h1>Report management</h1>
-    <p class="muted">Moderate active reports and maintain listings.</p>
   </div>
   {% if user.is_superuser %}
     <a class="button secondary small" href="{% url 'admin:app_list' 'core' %}">User admin</a>

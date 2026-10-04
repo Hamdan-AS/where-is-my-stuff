@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<header class="page-head qr-labels-head">
+  <div>
+    <h1>QR labels for your things</h1>
+    <p class="muted">Print a label and attach it to an item. A finder can scan it to call you.</p>
+  </div>
+</header>
+
+<div class="qr-labels-layout">
+  <section class="panel qr-create-panel">
+    <h2>Create a QR label</h2>
+    <p>Each label stays active for six months. Reactivate it later and the same printed code works again.</p>
+    <form method="post" class="qr-create-form">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="field{% if field.errors %} has-error{% endif %}">
+          {{ field.label_tag }}{{ field }}
+          {% if field.errors %}<div class="field-error" role="alert">{{ field.errors }}</div>{% endif %}
+          {% if field.help_text %}<span class="field-hint">{{ field.help_text }}</span>{% endif %}
+        </div>
+      {% endfor %}
+      <button type="submit">Create QR label</button>
+    </form>
+    <p class="qr-responsibility">The finder can see this phone number while the label is active. You and the finder are responsible for arranging the return yourselves.</p>
+  </section>
+
+  <section class="panel qr-label-list" aria-labelledby="your-labels-heading">
+    <div class="section-head"><h2 id="your-labels-heading">Your labels</h2><span class="section-count">{{ labels|length }}</span></div>
+    {% for label in labels %}
+      <article class="qr-label-row">
+        <img class="qr-label-image" src="{% url 'qr-label-image' label.pk %}" alt="QR code for {{ label.item_name }}">
+        <div class="qr-label-info">
+          <h3>{{ label.item_name }}</h3>
+          <span class="badge {% if label.is_active %}open{% else %}closed{% endif %}">{% if label.revoked %}Deactivated{% elif label.is_active %}Active{% else %}Expired{% endif %}</span>
+          <p>{% if label.is_active %}Active until {{ label.expires_at|date:"j M Y" }}{% elif label.revoked %}Scans are paused.{% else %}Expired {{ label.expires_at|date:"j M Y" }}{% endif %}</p>
+          <a class="text-link" href="{% url 'qr-label-image' label.pk %}?download=1" download>Download print image</a>
+          <div class="qr-label-actions">
+            {% if label.is_active %}
+              <form method="post" action="{% url 'qr-label-deactivate' label.pk %}">{% csrf_token %}<button class="secondary small" type="submit">Deactivate label</button></form>
+            {% else %}
+              <form method="post" action="{% url 'qr-label-reactivate' label.pk %}">{% csrf_token %}<button class="small" type="submit">Reactivate for six months</button></form>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+    {% empty %}
+      <div class="qr-label-empty"><h3>No QR labels yet</h3><p>Create one, print the image, then attach it to a bag or another item.</p></div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

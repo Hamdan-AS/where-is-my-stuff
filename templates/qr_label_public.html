@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="panel public-qr-page">
+  {% if active %}
+    <span class="kind-tag found">Lost item label</span>
+    <h1>Found {{ label.item_name|lower }}?</h1>
+    <p class="public-qr-intro">Please call the owner so you can contact each other and arrange the return.</p>
+    <a class="public-qr-call" href="tel:{{ label.contact_phone }}">Call {{ label.contact_phone }}</a>
+    <p class="public-qr-expiry">This label is active until {{ label.expires_at|date:"j F Y" }}.</p>
+    <p class="qr-responsibility">The owner and finder are responsible for agreeing how to return the item. This app does not verify ownership, supervise the handover, or guarantee a return.</p>
+  {% else %}
+    <span class="kind-tag lost">Label inactive</span>
+    <h1>This QR label is inactive</h1>
+    <p class="public-qr-intro">The owner needs to reactivate this label before their contact details can be shown.</p>
+  {% endif %}
+</section>
+{% endblock %}

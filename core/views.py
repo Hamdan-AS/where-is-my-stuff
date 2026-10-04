@@ -1,21 +1,24 @@
 from datetime import date
+from django.core.files.base import ContentFile
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError, PermissionDenied
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from django.db.models import Q, Case, When, Value, IntegerField
 from django.core.paginator import Paginator
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from .models import Report, Draft, Match
-from .forms import EmailLogin, Registration, TypeForm, DetailsForm, LocationForm, MatchingForm, MeetingForm
-from .services import publish, transition, moderate
+from .models import Report, Draft, Match, QRLabel
+from .forms import EmailLogin, Registration, TypeForm, DetailsForm, LocationForm, MatchingForm, MeetingForm, QRLabelForm, BAD_CHARS
+from .services import publish, transition, moderate, get_or_create_draft
 from .qr import generate_qr_png
+from .images import normalize_photo
+from .qr_labels import new_label_token, token_digest, expiry_after_months, make_label_qr
 
 class AccountLoginView(LoginView):
     template_name = "auth.html"
@@ -98,6 +101,8 @@ def dashboard(request):
 def report_history(request):
     reports = Report.objects.filter(owner=request.user).exclude(status="Removed")
     search = request.GET.get("q", "").strip()
+    if BAD_CHARS.search(search):
+        return HttpResponse("Remove special or invisible characters from your search.", status=400)
     status_filter = request.GET.get("status", "").strip()
     kind_filter = request.GET.get("kind", "").strip()
     if search:
@@ -124,15 +129,21 @@ def posted_selection(post):
 @login_required
 def wizard(request, pk=None):
     if pk is None:
-        existing = Draft.objects.filter(owner=request.user, report__isnull=True).order_by("-updated_at").first()
-        if existing:
+        existing, created = get_or_create_draft(request.user)
+        if not created:
             if request.method == "POST" and request.POST.get("action") == "new":
+                if (request.POST.get("confirm_discard") != "yes" or
+                        request.POST.get("discard_draft_id") != str(existing.pk)):
+                    discard_error = "Confirm that you want to discard this saved draft before starting a new report."
+                    return render(request, "resume_draft.html", {"draft": existing, "discard_error": discard_error})
+                previous_photo = existing.photo
                 existing.delete()
+                if previous_photo:
+                    previous_photo.delete(save=False)
                 messages.info(request, "Previous draft discarded.")
                 return redirect("create")
             return render(request, "resume_draft.html", {"draft": existing})
-        draft = Draft.objects.create(owner=request.user)
-        return redirect("draft", pk=draft.pk)
+        return redirect("draft", pk=existing.pk)
     draft = get_object_or_404(Draft, pk=pk, owner=request.user)
     if draft.report_id and (draft.report.status != "Open" or draft.report.reserved):
         messages.error(request, "Editing is locked while a handover is in progress or the report is closed.")
@@ -150,7 +161,9 @@ def wizard(request, pk=None):
         return redirect(request.path + "?step=3")
     if step > 4 and "answers" not in data:
         return redirect(request.path + "?step=4")
-    initial = data if step != 3 else data.get("answers", {})
+    # Location edits need the saved place and coordinates. Private answers are
+    # only the initial values for the Matching step.
+    initial = data.get("answers", {}) if step == 4 else data
     if step == 1 and data.get("event_date"):
         initial = {**data, "event_date": date.fromisoformat(data["event_date"])}
     form = None
@@ -159,12 +172,14 @@ def wizard(request, pk=None):
         kwargs = {"category": data["category"], "selection": posted_selection(request.POST) if request.method == "POST" else initial} if step == 4 else {}
         # Convert saved ISO date only at the storage boundary.
         bound = request.POST if request.method == "POST" else None
-        form = klass(bound, initial=initial, **kwargs)
+        form = klass(bound, request.FILES or None, initial=initial, **kwargs)
         if request.method == "POST":
             if step == 4 and request.POST.get("action") == "refresh":
                 form = klass(initial=posted_selection(request.POST), **kwargs)
             elif form.is_valid():
                 cleaned = form.cleaned_data
+                uploaded_photo = cleaned.pop("photo", None) if step == 2 else None
+                remove_photo = cleaned.pop("remove_photo", False) if step == 2 else False
                 if step == 1:
                     cleaned["event_date"] = cleaned["event_date"].isoformat()
                     if data.get("category") != cleaned["category"]:
@@ -177,14 +192,32 @@ def wizard(request, pk=None):
                         if cleaned.get(key) is not None:
                             cleaned[key] = str(cleaned[key])
                     data.update(cleaned)
+                if step == 2:
+                    if uploaded_photo:
+                        old_photo = draft.photo.name
+                        draft.photo.save("item-photo.jpg", normalize_photo(uploaded_photo), save=False)
+                        data.pop("remove_photo", None)
+                        if old_photo and old_photo != draft.photo.name:
+                            draft.photo.storage.delete(old_photo)
+                    elif remove_photo:
+                        data["remove_photo"] = True
+                        if draft.photo:
+                            draft.photo.delete(save=False)
                 draft.data = data
-                draft.save()
+                try:
+                    # Never insert a stale draft that another tab published or discarded.
+                    draft.save(update_fields=["data", "photo", "updated_at"])
+                except DatabaseError:
+                    if Draft.objects.filter(pk=draft.pk, owner=request.user).exists():
+                        raise
+                    messages.info(request, "This draft is no longer available. Check your reports before starting again.")
+                    return redirect("dashboard")
                 messages.success(request, "Draft saved to your account.")
                 return redirect(request.path + f"?step={step + 1}")
     elif request.method == "POST":
         try:
             with transaction.atomic():
-                draft = Draft.objects.get(pk=draft.pk, owner=request.user)
+                draft = get_object_or_404(Draft, pk=draft.pk, owner=request.user)
                 report = publish(draft, request.user)
             match_count = Match.objects.filter(
                 Q(lost=report) | Q(found=report), state="Possible Match"
@@ -198,13 +231,127 @@ def wizard(request, pk=None):
             messages.error(request, "; ".join(exc.messages))
     duplicate = Report.objects.filter(owner=request.user, status="Open", title__iexact=data.get("title", ""), kind=data.get("kind", ""), category=data.get("category", "")).exclude(pk=draft.report_id).exists() if step == 5 else False
     display_date = date.fromisoformat(data["event_date"]).strftime("%d-%m-%Y") if data.get("event_date") else ""
-    return render(request, "wizard.html", {"form": form, "step": step, "previous": step - 1, "draft": draft, "data": data, "display_date": display_date, "duplicate": duplicate, "steps": [(1, "Type"), (2, "Details"), (3, "Location"), (4, "Matching"), (5, "Review")]})
+    has_saved_photo = bool(draft.photo or (draft.report_id and draft.report.photo))
+    item_phrase = {
+        "Wallet / Purse": "a wallet or purse", "Cards / IDs": "a card or ID",
+        "Keys": "a set of keys", "Electronics": "an electronic item",
+        "Bag": "a bag", "Documents": "a document", "Cash / Money": "some cash",
+        "Other": "an item",
+    }.get(data.get("category"), "an item")
+    report_summary = f"You {data['kind'].lower()} {item_phrase}." if data.get("kind") in {"Lost", "Found"} else ""
+    return render(request, "wizard.html", {"form": form, "step": step, "previous": step - 1, "draft": draft, "data": data, "report_summary": report_summary, "display_date": display_date, "duplicate": duplicate, "current_photo": has_saved_photo and not data.get("remove_photo"), "steps": [(1, "Type"), (2, "Details"), (3, "Location"), (4, "Matching"), (5, "Review")]})
 
 @login_required
 def report_detail(request, pk):
     report = get_object_or_404(Report, pk=pk, owner=request.user)
     related_matches = Match.objects.filter(Q(lost=report) | Q(found=report)).select_related("lost", "found").exclude(state="Rejected").order_by("-pk")
     return render(request, "report.html", {"report": report, "events": report.event_set.order_by("-created_at"), "related_matches": related_matches})
+
+
+@login_required
+def report_photo(request, pk):
+    report = get_object_or_404(Report, pk=pk)
+    is_owner = report.owner_id == request.user.pk
+    is_match_participant = Match.objects.filter(
+        Q(lost=report, found__owner=request.user) |
+        Q(found=report, lost__owner=request.user)
+    ).exists()
+    if not (is_owner or is_match_participant) or not report.photo:
+        raise Http404
+    try:
+        photo = report.photo.open("rb")
+    except FileNotFoundError as exc:
+        raise Http404("Photo is no longer available.") from exc
+    response = FileResponse(photo, content_type="image/jpeg")
+    response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@login_required
+def draft_photo(request, pk):
+    draft = get_object_or_404(Draft, pk=pk, owner=request.user)
+    if not draft.photo:
+        raise Http404
+    try:
+        photo = draft.photo.open("rb")
+    except FileNotFoundError as exc:
+        raise Http404("Photo is no longer available.") from exc
+    response = FileResponse(photo, content_type="image/jpeg")
+    response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@login_required
+def qr_labels(request):
+    form = QRLabelForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        token = new_label_token()
+        label = QRLabel.objects.create(
+            owner=request.user,
+            item_name=form.cleaned_data["item_name"],
+            contact_phone=form.cleaned_data["contact_phone"],
+            token_hash=token_digest(token),
+            expires_at=expiry_after_months(timezone.now()),
+        )
+        qr_url = request.build_absolute_uri(reverse("qr-label-public", args=[token]))
+        try:
+            label.qr_image.save(f"label-{label.pk}.png", ContentFile(make_label_qr(qr_url).read()), save=True)
+        except Exception:
+            label.delete()
+            raise
+        messages.success(request, "QR label created. Download it, print it, and attach it to your item.")
+        return redirect("qr-labels")
+    return render(request, "qr_labels.html", {"form": form, "labels": QRLabel.objects.filter(owner=request.user)})
+
+
+@login_required
+@require_POST
+def reactivate_qr_label(request, pk):
+    label = get_object_or_404(QRLabel, pk=pk, owner=request.user)
+    label.expires_at = expiry_after_months(timezone.now())
+    label.revoked = False
+    label.save(update_fields=["expires_at", "revoked"])
+    messages.success(request, "Label reactivated. The same printed QR code works again for six months.")
+    return redirect("qr-labels")
+
+
+@login_required
+@require_POST
+def deactivate_qr_label(request, pk):
+    label = get_object_or_404(QRLabel, pk=pk, owner=request.user)
+    label.revoked = True
+    label.save(update_fields=["revoked"])
+    messages.success(request, "Label deactivated. Scanning it will no longer show your phone number.")
+    return redirect("qr-labels")
+
+
+@login_required
+def qr_label_image(request, pk):
+    label = get_object_or_404(QRLabel, pk=pk, owner=request.user)
+    if not label.qr_image:
+        raise Http404("QR image is no longer available.")
+    try:
+        qr_image = label.qr_image.open("rb")
+    except FileNotFoundError as exc:
+        raise Http404("QR image is no longer available.") from exc
+    response = FileResponse(
+        qr_image, content_type="image/png",
+        as_attachment=request.GET.get("download") == "1",
+        filename=f"item-qr-{label.pk}.png",
+    )
+    response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+def qr_label_public(request, token):
+    label = get_object_or_404(QRLabel, token_hash=token_digest(token))
+    response = render(request, "qr_label_public.html", {"label": label, "active": label.is_active})
+    response["Cache-Control"] = "private, no-store"
+    response["Referrer-Policy"] = "no-referrer"
+    return response
 
 @login_required
 @require_POST
@@ -218,7 +365,7 @@ def edit_report(request, pk):
         if data[key] is not None:
             data[key] = str(data[key])
     data["event_date"] = report.event_date.isoformat()
-    draft, _ = Draft.objects.get_or_create(owner=request.user, report=report, defaults={"data": data})
+    draft, _ = get_or_create_draft(request.user, report=report, defaults={"data": data})
     return redirect("draft", pk=draft.pk)
 
 @login_required
@@ -246,7 +393,13 @@ def management(request):
     if not request.user.is_staff:
         raise PermissionDenied
     if request.method == "POST":
-        report = get_object_or_404(Report, pk=request.POST.get("report"))
+        try:
+            report_id = int(request.POST.get("report", ""))
+            if not 0 < report_id <= 9223372036854775807:
+                raise ValueError
+        except (ValueError, TypeError):
+            return HttpResponse("Choose a valid report.", status=400)
+        report = get_object_or_404(Report, pk=report_id)
         try:
             moderate(report, request.user, request.POST.get("action"))
             messages.success(request, "Report updated.")
@@ -268,7 +421,9 @@ def report_found(request, public_id):
         return redirect("report", pk=lost_report.pk)
     if lost_report.status != "Open" or lost_report.reserved:
         return render(request, "closed_notice.html", {"report": lost_report})
-    draft, _ = Draft.objects.get_or_create(owner=request.user, report__isnull=True)
+    # Older or overlapping requests can leave multiple unfinished drafts.
+    # Resume the newest rather than failing with MultipleObjectsReturned.
+    draft, _ = get_or_create_draft(request.user)
     draft.data.update({
         "kind": "Found",
         "category": lost_report.category,

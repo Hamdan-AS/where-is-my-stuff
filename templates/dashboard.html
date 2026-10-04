@@ -1,211 +1,83 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="dash-wrap">
+<header class="page-head">
+  <h1>Dashboard</h1>
+  <a class="button" href="{% url 'create' %}">{% include 'components/icon.html' with name='plus' %} Create report</a>
+</header>
 
-  <div class="dash-head">
-    <div>
-      <p class="dash-eyebrow">Dashboard</p>
-      <h1>Your lost and found activity</h1>
-      <p class="dash-sub">Start with anything that needs your response.</p>
-    </div>
-    <a class="btn btn-primary" href="{% url 'create' %}">Report another item</a>
-  </div>
+<section class="overview" aria-label="Report totals">
+  <article class="metric"><span class="metric-icon">{% include 'components/icon.html' with name='bag' %}</span><span>Open reports</span><strong>{{ open_count }}</strong></article>
+  <article class="metric featured"><span class="metric-icon">{% include 'components/icon.html' with name='match' %}</span><span>Possible matches</span><strong>{{ possible_count }}</strong></article>
+  <article class="metric"><span class="metric-icon">{% include 'components/icon.html' with name='clock' %}</span><span>Handovers</span><strong>{{ handover_count }}</strong></article>
+  <article class="metric"><span class="metric-icon">{% include 'components/icon.html' with name='check' %}</span><span>Returned</span><strong>{{ returned_count }}</strong></article>
+</section>
 
-  <div class="stats" aria-label="Current report totals">
-    <div class="stat-card">
-      <p class="label">Open reports</p>
-      <p class="value">{{ open_count }}</p>
-      <p class="sub">Still being checked</p>
-    </div>
-    <div class="stat-card attn">
-      <p class="label">Matches to review</p>
-      <p class="value">{{ possible_count }}</p>
-      <p class="sub">Compare the report details</p>
-    </div>
-    <div class="stat-card">
-      <p class="label">Handovers</p>
-      <p class="value">{{ handover_count }}</p>
-      <p class="sub">Proposed or scheduled</p>
-    </div>
-    <div class="stat-card">
-      <p class="label">Returned</p>
-      <p class="value">{{ returned_count }}</p>
-      <p class="sub">Completed reports</p>
-    </div>
-  </div>
-
-  {% if hero %}
-  <div class="dash-section">
-    <div class="dash-section-head">
-      <h2>Needs your response</h2>
-      <p>{% if hero.state == 'Possible Match' %}A match was found. Compare the details and decide how to proceed.{% else %}A handover is waiting on you. Review it below.{% endif %}</p>
-    </div>
-
-    <div class="match-card">
-      {% if hero.lost.owner_id == user.pk %}
-        {% with yours=hero.lost theirs=hero.found %}
-          <div class="compare-row">
-            <div class="match-side yours">
-              <p class="tag">Your report</p>
-              <h3 class="title">{{ yours.kind }} · {{ yours.title }}</h3>
-              <p class="meta">{{ yours.location }}{% if yours.location_detail %} · {{ yours.location_detail }}{% endif %} · {{ yours.event_date|date:"M d" }}</p>
-            </div>
-            <div class="match-arrow" aria-hidden="true">&#8596;</div>
-            <div class="match-side theirs">
-              <p class="tag">Their report</p>
-              <h3 class="title">{{ theirs.kind }} · {{ theirs.title }}</h3>
-              <p class="meta">{{ theirs.location }}{% if theirs.location_detail %} · {{ theirs.location_detail }}{% endif %} · {{ theirs.event_date|date:"M d" }}</p>
-            </div>
-          </div>
-        {% endwith %}
-      {% else %}
-        {% with yours=hero.found theirs=hero.lost %}
-          <div class="compare-row">
-            <div class="match-side yours">
-              <p class="tag">Your report</p>
-              <h3 class="title">{{ yours.kind }} · {{ yours.title }}</h3>
-              <p class="meta">{{ yours.location }}{% if yours.location_detail %} · {{ yours.location_detail }}{% endif %} · {{ yours.event_date|date:"M d" }}</p>
-            </div>
-            <div class="match-arrow" aria-hidden="true">&#8596;</div>
-            <div class="match-side theirs">
-              <p class="tag">Their report</p>
-              <h3 class="title">{{ theirs.kind }} · {{ theirs.title }}</h3>
-              <p class="meta">{{ theirs.location }}{% if theirs.location_detail %} · {{ theirs.location_detail }}{% endif %} · {{ theirs.event_date|date:"M d" }}</p>
-            </div>
-          </div>
-        {% endwith %}
-      {% endif %}
-
-      {% if hero.state == 'Possible Match' %}
-        <div class="score-block">
-          <div class="score-line">
-            <span>Match confidence</span>
-            <strong>{{ hero.score }}%</strong>
-          </div>
-          <div class="bar-track" role="presentation"><div class="bar-fill" style="width: {{ hero.score }}%"></div></div>
-          <div class="score-grid">
-            <div class="row"><span>Category</span><span>{{ hero.breakdown.Category|default:0 }}/20</span></div>
-            <div class="row"><span>Location</span><span>{{ hero.breakdown.Location|default:0 }}/20</span></div>
-            <div class="row"><span>Date proximity</span><span>{{ hero.breakdown.Date|default:0 }}/15</span></div>
-            <div class="row"><span>Description</span><span>{{ hero.breakdown.Description|default:0 }}/15</span></div>
-            <div class="row full"><span>Private answers</span><span>{{ hero.breakdown.Private|default:0 }}/30</span></div>
-          </div>
+<div class="dashboard-columns">
+  <div>
+    <section class="panel match-feature">
+      <div class="section-head"><h2>Match review</h2>{% if hero %}<span class="badge green">{{ hero.state }}</span>{% endif %}</div>
+      {% if hero %}
+      <div class="comparison">
+        <div class="comparison-item">
+          <span class="kind-tag lost">{% if hero.lost.owner_id == user.pk %}Your {% endif %}Lost report</span>
+          <h3>{{ hero.lost.title }}</h3><p>{{ hero.lost.location }}</p>
+          <small>{{ hero.lost.display_id }} &middot; {{ hero.lost.event_date|date:"j M Y" }}</small>
         </div>
-        <div class="match-actions">
-          <a class="btn btn-primary" href="{% url 'match' hero.pk %}">Respond to match</a>
-          <form method="post" action="{% url 'match' hero.pk %}" data-reject-match>
-            {% csrf_token %}
-            <button class="btn btn-secondary" name="action" value="reject" type="submit">Dismiss</button>
-          </form>
+        <span class="comparison-link">{% include 'components/icon.html' with name='match' %}</span>
+        <div class="comparison-item">
+          <span class="kind-tag found">{% if hero.found.owner_id == user.pk %}Your {% endif %}Found report</span>
+          <h3>{{ hero.found.title }}</h3><p>{{ hero.found.location }}</p>
+          <small>{{ hero.found.display_id }} &middot; {{ hero.found.event_date|date:"j M Y" }}</small>
         </div>
-      {% else %}
-        {% if hero.meeting_at %}
-          <div class="notice neutral">
-            <strong>{{ hero.state }}</strong>
-            <span>{{ hero.meeting_place }} · {{ hero.meeting_at|date:"d-m-y h:i A" }}</span>
-          </div>
-        {% endif %}
-        <div class="match-actions">
-          <a class="btn btn-primary" href="{% url 'match' hero.pk %}">
-            {% if hero.state == 'Handover Proposed' and hero.proposer_id != user.pk %}Respond to proposal
-            {% else %}View handover{% endif %}
-          </a>
-        </div>
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
-
-  {% if other_matches or drafts %}
-  <div class="dash-section">
-    <div class="dash-section-head">
-      <h2>Also needs attention</h2>
-      <p>Drafts and pending handovers, lower priority than a match.</p>
-    </div>
-    <div class="attn-list">
-      {% for match in other_matches %}
-        <a class="attn-row" href="{% url 'match' match.pk %}">
-          <div>
-            <p class="attn-title">{{ match.lost.title }} · {{ match.found.title }}</p>
-            <p class="attn-meta">{{ match.lost.display_id }} · {{ match.found.display_id }} · {{ match.state }}</p>
-          </div>
-          <span class="pill pill-match">{{ match.score }}/100</span>
-        </a>
-      {% endfor %}
-      {% for draft in drafts %}
-        <a class="attn-row" href="{% url 'draft' draft.pk %}">
-          <div>
-            <p class="attn-title">{{ draft.data.title|default:"Untitled report" }}</p>
-            <p class="attn-meta">Saved {{ draft.updated_at|date:"d M Y, H:i" }}</p>
-          </div>
-          <span class="pill pill-draft">Draft</span>
-        </a>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-
-  <div class="dash-section">
-    <div class="dash-section-head">
-      <div>
-        <h2>Your active reports ({{ reports|length }})</h2>
-        <p>Reports still being checked or matched.</p>
       </div>
-    </div>
+      {% if hero.state == 'Possible Match' %}
+      <div class="match-score"><div><span>Similarity score</span><strong>{{ hero.score }}<small>/100</small></strong></div><div class="confidence-bar"><span style="width:{{ hero.score }}%"></span></div></div>
+      <details class="score-details"><summary>Score breakdown <span>+</span></summary><div class="score-details-grid">
+        <span>Category <b>{{ hero.breakdown.Category|default:0 }}/20</b></span><span>Location <b>{{ hero.breakdown.Location|default:0 }}/20</b></span><span>Date <b>{{ hero.breakdown.Date|default:0 }}/15</b></span><span>Description <b>{{ hero.breakdown.Description|default:0 }}/15</b></span><span>Private answers <b>{{ hero.breakdown.Private|default:0 }}/30</b></span>
+      </div></details>
+      <div class="match-feature-actions">
+        <a class="button" href="{% url 'match' hero.pk %}">Review match {% include 'components/icon.html' with name='arrow' %}</a>
+        <form method="post" action="{% url 'match' hero.pk %}" data-reject-match>{% csrf_token %}<button class="secondary" type="submit" name="action" value="reject">Dismiss</button></form>
+      </div>
+      {% else %}
+      {% if hero.meeting_at %}<div class="meeting-summary">{% include 'components/icon.html' with name='clock' %}<div><strong>{{ hero.meeting_place }}</strong><small>{{ hero.meeting_at|date:"d-m-y h:i A" }} · Pakistan time</small></div></div>{% endif %}
+      <div class="match-feature-actions"><a class="button" href="{% url 'match' hero.pk %}">{% if hero.state == 'Handover Proposed' and hero.proposer_id != user.pk %}Respond to proposal{% else %}View handover{% endif %}{% include 'components/icon.html' with name='arrow' %}</a></div>
+      {% endif %}
+      {% else %}
+      <div class="match-empty"><span class="empty-icon">{% include 'components/icon.html' with name='search' %}</span><h3>No possible matches yet</h3></div>
+      {% endif %}
+    </section>
 
-    {% if reports %}
-    <div class="attn-list">
-      {% for report in reports %}
-        <div class="report-row">
-          <div>
-            <p class="report-id">{{ report.display_id }}</p>
-            <h3 class="title"><a href="{% url 'report' report.pk %}">{{ report.title }}</a></h3>
-            <p class="report-meta">{{ report.kind }} on {{ report.event_date|date:"d M Y" }} · {{ report.location }}</p>
-          </div>
-          <div class="right">
-            {% if report.reserved %}<span class="pill pill-match">Match found</span>
-            {% else %}<span class="pill pill-open">{{ report.status }}</span>{% endif %}
-            <a class="btn btn-secondary" href="{% url 'report' report.pk %}">View report</a>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-    {% else %}
-      <div class="empty-note">No open reports right now.</div>
+    {% if other_matches %}<section class="panel"><div class="section-head"><h2>Other matches</h2><span class="section-count">{{ other_matches|length }}</span></div><div class="item-list">
+      {% for match in other_matches %}<a class="item-row" href="{% url 'match' match.pk %}"><span class="item-icon">{% include 'components/icon.html' with name='match' %}</span><span class="item-copy"><strong>{{ match.lost.title }}</strong><small>{{ match.found.title }} &middot; {{ match.state }}</small></span><span class="badge green">{{ match.score }}/100</span>{% include 'components/icon.html' with name='arrow' %}</a>{% endfor %}
+    </div></section>{% endif %}
+  </div>
+
+  <div>
+    <section class="panel">
+      <div class="section-head"><h2>Your active reports <span class="section-count">{{ reports|length }}</span></h2>{% if total_count > 1 %}<a class="text-link" href="{% url 'reports' %}">View all {% include 'components/icon.html' with name='arrow' %}</a>{% endif %}</div>
+      <div class="item-list">
+        {% for report in reports %}
+        <article class="item-row" id="report-{{ report.pk }}">
+          <span class="item-icon {% if report.kind == 'Lost' %}item-lost{% endif %}">{% include 'components/icon.html' with name='bag' %}</span>
+          <div class="item-copy"><a class="item-title" href="{% url 'report' report.pk %}">{{ report.title }}</a><small>{{ report.display_id }} &middot; {{ report.kind }} &middot; {{ report.location }}</small></div>
+          <span class="badge {% if report.reserved %}green{% else %}open{% endif %}">{% if report.reserved %}Match found{% else %}{{ report.status }}{% endif %}</span>
+          <a class="icon-link" href="{% url 'report' report.pk %}" aria-label="View {{ report.title }}">{% include 'components/icon.html' with name='arrow' %}</a>
+        </article>
+        {% empty %}<div class="compact-empty"><h3>No active reports</h3></div>{% endfor %}
+      </div>
+    </section>
+
+    {% if drafts %}<section class="panel"><div class="section-head"><h2>Drafts</h2><span class="section-count">{{ drafts|length }}</span></div><div class="item-list">
+      {% for draft in drafts %}<a class="item-row" href="{% url 'draft' draft.pk %}"><span class="item-icon neutral">{% include 'components/icon.html' with name='edit' %}</span><span class="item-copy"><strong>{{ draft.data.title|default:"Untitled report" }}</strong><small>{{ draft.updated_at|date:"j M Y, H:i" }}</small></span>{% include 'components/icon.html' with name='arrow' %}</a>{% endfor %}
+    </div></section>{% endif %}
+
+    {% if returned_reports %}
+    <section class="history-section"><button class="history-toggle" type="button" data-reports-toggle aria-controls="historyBody" aria-expanded="false"><span>{% include 'components/icon.html' with name='check' %} Returned items <small>{{ returned_reports|length }}</small></span><span class="history-chevron">⌄</span></button>
+      <div class="history-body item-list" id="historyBody">{% for report in returned_reports %}<article class="item-row"><div class="item-copy"><a class="item-title" href="{% url 'report' report.pk %}">{{ report.title }}</a><small>{{ report.display_id }} &middot; {{ report.event_date|date:"j M Y" }}</small></div><span class="badge green">Returned</span><a class="icon-link" href="{% url 'report' report.pk %}" aria-label="View {{ report.title }}">{% include 'components/icon.html' with name='arrow' %}</a></article>{% endfor %}</div>
+    </section>
     {% endif %}
   </div>
-
-  {% if returned_reports %}
-  <div class="dash-section">
-    <div class="reports-toggle" data-reports-toggle aria-controls="historyBody" aria-expanded="false">
-      <span>History — returned reports ({{ returned_reports|length }})</span>
-      <span class="chev" aria-hidden="true">&#9662;</span>
-    </div>
-    <div class="reports-body" id="historyBody">
-      {% for report in returned_reports %}
-        <div class="report-row">
-          <div>
-            <p class="report-id">{{ report.display_id }}</p>
-            <h3 class="title"><a href="{% url 'report' report.pk %}">{{ report.title }}</a></h3>
-            <p class="report-meta">{{ report.kind }} on {{ report.event_date|date:"d M Y" }} · {{ report.location }}</p>
-          </div>
-          <div class="right">
-            <span class="pill pill-returned">Returned</span>
-            <a class="btn btn-secondary" href="{% url 'report' report.pk %}">View report</a>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-
-  <div class="dash-legend">
-    <span><span class="dot dot-draft"></span>Draft — not yet submitted</span>
-    <span><span class="dot dot-open"></span>Open — being checked</span>
-    <span><span class="dot dot-match"></span>Match found — needs your response</span>
-    <span><span class="dot dot-returned"></span>Returned — completed</span>
-  </div>
-
 </div>
 {% endblock %}

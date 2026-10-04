@@ -9,63 +9,88 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-head">
+<div class="page-head wizard-page-head">
   <div>
     <span class="eyebrow">Report an item</span>
     <h1>{% if step == 1 %}What happened to your item?{% else %}Complete your report{% endif %}</h1>
-    <p class="muted">Tell us whether it was lost or found. We will check it against other reports.</p>
   </div>
   <small class="muted">Draft saved {{ draft.updated_at|date:"H:i" }}</small>
 </div>
 
-<section class="panel wizard">
-  <nav class="steps">
+<div class="wizard-layout">
+<aside class="wizard-guide">
+  <nav class="steps" aria-label="Report progress">
     {% for number,label in steps %}
-      <a class="{% if step == number %}active{% elif step > number %}done{% endif %}" href="?step={{ number }}">
+      <a class="{% if step == number %}active{% elif step > number %}done{% endif %}" href="?step={{ number }}" {% if step == number %}aria-current="step"{% endif %}>
         <b>{{ number }}</b>
         <span>{{ label }}</span>
       </a>
     {% endfor %}
   </nav>
+</aside>
+<section class="panel wizard wizard-step-{{ step }}">
+  <p class="form-step-label">STEP {{ step }} OF 5</p>
 
   <h2>{% if step == 1 %}1. Type and category{% elif step == 2 %}2. Item details{% elif step == 3 %}3. Location{% elif step == 4 %}4. Private matching details{% else %}5. Review your report{% endif %}</h2>
 
-  {% if step == 4 %}
-    <p class="muted">Private matching details are used only to compare similar reports and are never displayed publicly.</p>
-  {% endif %}
 
-  <form method="post" data-report-form>{% csrf_token %}
+  <form method="post" enctype="multipart/form-data" data-report-form>{% csrf_token %}
+    {% if step == 2 and report_summary %}<p class="notice">{{ report_summary }} <a href="?step=1">Change type or category</a></p>{% endif %}
+    {% if step == 1 and data.answers %}<p class="notice warning">Changing category clears your private answers.</p>{% endif %}
     {% if form %}
       {{ form.non_field_errors }}
+      {% if step == 1 %}<datalist id="item-title-suggestions"><option value="Wallet / purse"><option value="Handbag"><option value="Backpack"><option value="Laptop bag"><option value="Keys"><option value="Phone"><option value="Laptop"></datalist>{% endif %}
       {% for field in form %}
+        {% if field.name != 'remove_photo' or current_photo %}
         {% if field.name == 'lat' %}
           <div class="field" data-coords-picker>
             <div class="coords-map" data-coords-map></div>
             <p class="coords-actions">
               <button type="button" class="secondary small" id="use-current-location">Use my location</button>
             </p>
-            <small class="muted" data-map-status>Click the map or drag the pin to set the exact spot.</small>
+            <small class="muted" data-map-status role="status">No location selected.</small>
           </div>
         {% endif %}
         <div class="field{% if field.errors %} has-error{% endif %}">
           {{ field.label_tag }}
           {{ field }}
           {% if field.errors %}
-            <p class="field-error" role="alert">Invalid input. Please enter a correct value.</p>
+            <div class="field-error" id="{{ field.auto_id }}_error" role="alert">{{ field.errors }}</div>
           {% endif %}
           {% if field.help_text %}
-            <small>{{ field.help_text }}</small>
+            {% if field.name == 'photo' %}<span class="field-hint" id="{{ field.auto_id }}_helptext">{{ field.help_text }} Avoid faces, identity cards, and payment details.</span>
+            {% elif field.name == 'title' or field.name == 'description' %}<span class="field-hint" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>
+            {% else %}<span class="sr-only" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}
           {% endif %}
         </div>
+        {% if step == 2 and field.name == 'photo' %}
+          <div class="photo-preview" data-photo-preview hidden aria-live="polite">
+            <img data-photo-preview-image alt="Selected item photo preview">
+            <div><strong>Selected photo</strong><span data-photo-preview-name></span></div>
+          </div>
+        {% endif %}
+        {% endif %}
       {% endfor %}
 
+      {% if step == 2 and current_photo %}
+        <div class="existing-photo">
+          {% if draft.photo %}
+            <img src="{% url 'draft-photo' draft.pk %}" alt="Saved photo of {{ data.title }}">
+            <span>Saved draft photo</span>
+          {% else %}
+            <img src="{% url 'report-photo' draft.report_id %}" alt="Current photo of {{ draft.report.title }}">
+            <span>Current item photo</span>
+          {% endif %}
+        </div>
+      {% endif %}
+
       {% if step == 2 %}
-        <p id="privacy-hint" role="status">Describe visible features. Keep identifiers and contact information private.</p>
+        <p id="privacy-hint" class="field-error" role="status" hidden></p>
       {% endif %}
 
       {% if step == 4 %}
         <button class="secondary" name="action" value="refresh" formnovalidate>Update questions from my selections</button>
-        <p class="muted" id="selection-help">Questions change when contents, card count, or card type changes.</p>
+        <span class="sr-only" id="selection-help">Questions change when your selections change.</span>
       {% endif %}
 
     {% else %}
@@ -73,7 +98,7 @@
         <p class="notice">A similar open report already exists in your account. Please check your dashboard before creating another.</p>
       {% endif %}
 
-      <dl>
+      <dl class="meta-list wide">
         <dt>Report type</dt>
         <dd>{{ data.kind }}. {{ data.category }}</dd>
 
@@ -90,8 +115,18 @@
         <dd>{{ data.location }} ({{ data.location_detail }})</dd>
       </dl>
 
-      <p class="muted">Private questionnaire is complete. Private answers are saved and not shown here.</p>
-      <p class="notice">Match scores indicate similarity. Report details lock once a handover is proposed.</p>
+      {% if step == 5 and draft.photo %}
+        <figure class="report-photo review-photo">
+          <img src="{% url 'draft-photo' draft.pk %}" alt="Preview of {{ data.title }}">
+          <figcaption>Photo that will appear with this report. Visible to you and people in this report’s match.</figcaption>
+        </figure>
+      {% elif step == 5 and draft.report.photo and not data.remove_photo %}
+        <figure class="report-photo review-photo">
+          <img src="{% url 'report-photo' draft.report_id %}" alt="Current photo of {{ data.title }}">
+          <figcaption>Current photo that will stay with this report. Visible to you and people in this report’s match.</figcaption>
+        </figure>
+      {% endif %}
+
     {% endif %}
 
     <div class="actions">
@@ -104,4 +139,5 @@
     </div>
   </form>
 </section>
+</div>
 {% endblock %}

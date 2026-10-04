@@ -1,14 +1,31 @@
 # Where Is My Stuff? — Django application
 
-Local campus lost-and-found application. Python 3.10+, Django 5.2, SQLite, Django
+Local campus lost-and-found application. Python 3.10+, Django 5.2, PostgreSQL, Django
 templates, CSS, and small browser scripts.
 
 ## Run
 
+This machine's v2 database has been migrated to PostgreSQL. Start Docker Desktop,
+then run `docker compose up -d --wait` before starting Django. Local credentials
+are loaded from the gitignored `.env` file. See [PostgreSQL setup and migration](docs/POSTGRESQL.md)
+for first setup on another machine, backups, and the preserved SQLite source.
+
+Run these commands from the project directory. Create the virtual environment only
+the first time on a machine.
+
 ```bash
-cd /home/elite/sandbox/where-is-my-stuff-ui_iter
-python3 -m venv .venv
-source .venv/bin/activate
+python -m venv .venv
+```
+
+Activate it in PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+On macOS or Linux, use `source .venv/bin/activate` instead. Then install and start:
+
+```bash
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver 127.0.0.1:8086
@@ -33,10 +50,10 @@ python manage.py makemigrations --check --dry-run
 python manage.py test core
 ```
 
-`manage.py test core` runs three modules: `core/tests.py`, `core/test_screening.py`, and
-`core/test_browser.py`. The browser module is skipped unless Playwright is installed. Do
-not use `manage.py test core.tests`, which silently skips the 303 lines of boundary
-sweeps in `core/test_screening.py`.
+`manage.py test core` runs the unit, boundary, adversarial, image/QR, and browser test
+modules. Browser tests are skipped unless Playwright and Chrome are available. Do not use
+`manage.py test core.tests`, which silently skips the boundary sweeps in
+`core/test_screening.py`.
 
 ## Behaviour
 
@@ -52,9 +69,19 @@ button, and the latitude and longitude fields. All three write to the same
 `Report.lat` and `Report.lng` columns, which stay the single source of truth for
 position. The fields are the keyboard and no-JS path when tiles fail.
 
-A Lost report shows a QR code. Scanning it opens a public claim page where a finder
-enters their contact details and claims the item, which seeds a Found draft for them.
-Scanning your own report is refused, and the QR box renders only on Lost reports.
+A Lost report shows a QR code to share with the finder. Scanning it asks them to sign in,
+then seeds a Found draft with public item details. Scanning from the same account is
+refused. Accounts are not verified real-world identities, so another account can still
+start a Found draft from the QR; the code does not prove possession or ownership. The QR
+box renders only on Lost reports. Owners can also make six-month personal item labels
+that show their phone number to anyone scanning an active label; the owner and finder
+arrange the return themselves.
+
+Report photos are optional. JPEG, PNG, and WebP uploads are limited to 5 MiB and 24
+megapixels. The wizard previews the selected photo and shows it again on Review. Stored
+photos are oriented, resized to at most 1,800 pixels on the long edge without cropping,
+converted to JPEG, and stripped of metadata. Only the owner and match participants can
+view report photos.
 
 Wallet contents control the questions. Selecting CNIC and Cash shows their fields, not
 bank-card fields. An empty wallet is allowed. Up to five bank cards each have issuer and
@@ -75,21 +102,27 @@ None/Other do not earn evidence points. At least two agreements and 70 points ar
 required. Scores are suggestions, not ownership guarantees. Full rules are in
 `matching-architecture.md`.
 
-NED department values use a controlled catalog: CIS, CSIT, Civil Engineering, Mathematics,
-Physics, Chemistry, Metallurgical Engineering, and Other. A Department Office handover
-requires a department selection. BCIT is treated as a historical programme name, not a
-current department label.
+NED student-card issuer values use a controlled department catalog: CIS, CSIT, Civil
+Engineering, Mathematics, Physics, Chemistry, Metallurgical Engineering, and Other.
+BCIT is treated as a historical programme name. Handover meeting places are free text.
 
 A proposal reserves both reports. The other participant accepts the same meeting; only
 then are contacts visible. Either participant can record return at or after the meeting
 time. Rejection releases a proposed reservation. Returned records and moderation history
 persist. Management removal is an audited soft removal.
 
-SQLite IMMEDIATE transactions serialize brief writes to prevent competing handovers in
-the local app. A shared campus deployment requires deployment configuration, HTTPS,
-login throttling, backup policy, and a PostgreSQL concurrency review.
+PostgreSQL advisory transaction locks serialize matching and handover writes.
+Draft acquisition locks the owner's row so concurrent new-report, QR-scan, and edit
+requests reuse the same applicable draft. Late step saves cannot recreate a deleted draft.
+A shared campus deployment still requires HTTPS, login throttling, a backup
+policy, production security review, and load testing.
 
 ## Delivery
+
+For cloud learning, see [the cloud practice guide](docs/CLOUD-PRACTICE.md),
+`requirements-production.txt`, and `config.production`. Cloud deployment
+remains pending. Local PostgreSQL migration and concurrency
+validation are complete; see [verification results](docs/POSTGRESQL.md).
 
 `TODO-INCREMENTAL.md` is the single authoritative project tracker and holds the local demo
 credentials. Increments 1 and 2 are complete, increments 3 and 4 are pending.
@@ -97,5 +130,5 @@ credentials. Increments 1 and 2 are complete, increments 3 and 4 are pending.
 The CS-326 documentation set, and the PHP project it described, are both gone. The
 Django application is the only implementation.
 
-Deferred: separate child reports, social login, images, AI, chat, notifications by email,
-hosted deployment, and formal academic SRS/SDD packages.
+Deferred: separate child reports, social login, AI, chat, notifications by email, hosted
+deployment, and formal academic SRS/SDD packages.

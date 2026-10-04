@@ -131,8 +131,7 @@ class EventDateTests(SimpleTestCase):
 
 class ContactFieldTests(SimpleTestCase):
     def test_accepted_contacts(self):
-        for value in ["03001234567", "+92 300 1234567", "+92-300-1234567",
-                      "(0300) 1234567", "1234567", "a@b.com"]:
+        for value in ["03001234567", "03111234567", "03331234567"]:
             with self.subTest(contact=value):
                 self.assertTrue(DetailsForm(details_data(contact=value)).is_valid())
 
@@ -152,6 +151,10 @@ class ContactFieldTests(SimpleTestCase):
             "markup": "<script>alert(1)</script>",
             "dotted phone": "0300.1234567",
             "arabic indic digits": "٠٣٠٠١٢٣٤٥٦٧",
+            "wrong prefix": "13001234567",
+            "ten digits": "0300123456",
+            "twelve digits": "030012345678",
+            "formatted phone": "+923001234567",
         }
         for label, value in cases.items():
             with self.subTest(case=label):

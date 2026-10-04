@@ -5,16 +5,11 @@
 
 <div class="page-head">
   <div>
-    <span class="eyebrow">Possible match</span>
     <h1>Match review</h1>
-    <p class="muted">Compare both reports before choosing a handover step.</p>
   </div>
-  <span class="score-pill">{{ match.score }}/100</span>
+  <span class="score-pill" aria-label="Similarity score: {{ match.score }} out of 100">{{ match.score }}/100</span>
 </div>
 
-<div class="notice warning">
-  A score is a report comparison. Confirm the item in person before recording return.
-</div>
 
 <div class="match-grid">
   <section class="panel report-card">
@@ -23,6 +18,7 @@
       <span class="badge lost">{{ match.lost.display_id }}</span>
     </div>
     <strong>{{ match.lost.title }}</strong>
+    {% if match.lost.photo %}<img class="match-item-photo" src="{% url 'report-photo' match.lost_id %}" alt="Photo of {{ match.lost.title }}">{% endif %}
     <dl class="meta-list">
       <dt>Category</dt>
       <dd>{{ match.lost.category }}</dd>
@@ -41,6 +37,7 @@
       <span class="badge found">{{ match.found.display_id }}</span>
     </div>
     <strong>{{ match.found.title }}</strong>
+    {% if match.found.photo %}<img class="match-item-photo" src="{% url 'report-photo' match.found_id %}" alt="Photo of {{ match.found.title }}">{% endif %}
     <dl class="meta-list">
       <dt>Category</dt>
       <dd>{{ match.found.category }}</dd>
@@ -60,7 +57,6 @@
         <span class="factor"><strong>{{ points }}</strong>{{ factor }}</span>
       {% endfor %}
     </div>
-    <p class="private-note">Private answers stay hidden on this page.</p>
   </section>
 </div>
 
@@ -68,28 +64,27 @@
   <div class="section-head">
     <div>
       <h2>{{ match.state }}</h2>
-      <p class="muted">Use this section to propose, accept, dismiss, or complete the handover.</p>
     </div>
   </div>
 
   {% if match.state == 'Possible Match' %}
     <form method="post" data-meeting-form class="handover-form">
       {% csrf_token %}
-      {{ form.as_p }}
+      {% if form.non_field_errors %}<div class="field-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+      {% for field in form %}<div class="field">{{ field.label_tag }}{{ field }}{% if field.name == 'meeting_at' %}<button type="button" class="secondary small meeting-now" data-meeting-now>Use next available hour</button>{% endif %}{% if field.errors %}<div class="field-error" id="{{ field.auto_id }}_error" role="alert">{{ field.errors }}</div>{% endif %}{% if field.help_text %}<span class="sr-only" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</span>{% endif %}</div>{% endfor %}
       <button name="action" value="propose">Propose handover</button>
     </form>
   {% endif %}
 
   {% if match.meeting_at %}
     <div class="notice neutral">
-      <strong>Scheduled handover</strong>
+      <strong>Meeting</strong>
       <span>Location: {{ match.meeting_place }}</span>
       <span>Time: {{ match.meeting_at|date:"d-m-y h:i A" }} Pakistan time</span>
     </div>
   {% endif %}
 
   {% if match.state == 'Handover Proposed' and match.proposer_id != user.pk %}
-    <p class="muted">The other party has proposed a handover meeting. Review the details before accepting.</p>
     <form method="post">
       {% csrf_token %}
       <button name="action" value="accept">Accept this meeting</button>
@@ -104,7 +99,7 @@
   {% endif %}
 
   {% if match.state == 'Rejected' and can_restore %}
-    <div class="notice">This match suggestion was dismissed. Restore it only if that was a mistake.</div>
+    <div class="notice">Suggestion dismissed.</div>
     <form method="post" data-restore-match>
       {% csrf_token %}
       <button class="secondary" name="action" value="restore">Restore suggestion</button>
@@ -112,7 +107,6 @@
   {% endif %}
 
   {% if match.state == 'Handover Scheduled' %}
-    <p class="muted">After meeting at the scheduled time, confirm the item return.</p>
     <form method="post">
       {% csrf_token %}
       <button name="action" value="returned">Confirm item returned</button>
@@ -120,12 +114,13 @@
   {% endif %}
 
   <div class="contact-box">
+    <p>You and the other person are responsible for contacting one another and arranging the return. The app does not verify ownership, supervise the handover, or guarantee that an item will be returned.</p>
     {% if contacts %}
       <h3>Participant contact details</h3>
       <p><strong>Lost report contact:</strong> {{ match.lost.contact }}</p>
       <p><strong>Found report contact:</strong> {{ match.found.contact }}</p>
     {% else %}
-      <p>Contact information appears after both participants accept the handover proposal.</p>
+      <strong>Contact details locked</strong>
     {% endif %}
   </div>
 </section>

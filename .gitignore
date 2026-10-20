@@ -24,6 +24,8 @@ private-media/
 staticfiles/
 manual-test-images/
 .playwright-mcp/
+output/
+tmp/
 /static/login-concepts/
 .coverage
 .coverage.*

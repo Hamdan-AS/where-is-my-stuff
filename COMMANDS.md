@@ -163,14 +163,20 @@ Check whether the local database port is listening:
 Get-NetTCPConnection -LocalPort 55432 -State Listen -ErrorAction SilentlyContinue
 ```
 
-This project reads DATABASE_URL from .env. To use the SQLite fallback just
-for the current PowerShell session, clear the environment override before
-starting Django:
+This project reads DATABASE_URL from .env. To run on the local SQLite file
+instead (for example when Docker is not installed), point DATABASE_URL at it
+for the current PowerShell session:
 
 ```powershell
-$env:DATABASE_URL = ''
+Copy-Item db.sqlite3 db.sqlite3.bak
+$env:DATABASE_URL = 'sqlite:///db.sqlite3'
+.\.venv\Scripts\python.exe manage.py migrate
 .\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8086
 ```
+
+Do not use `$env:DATABASE_URL = ''`: Windows PowerShell deletes the variable
+when it is set to an empty string, so `.env` is loaded and Django still
+tries PostgreSQL.
 
 For PostgreSQL backup, SQLite import, and migration details, see
 [docs/POSTGRESQL.md](docs/POSTGRESQL.md).

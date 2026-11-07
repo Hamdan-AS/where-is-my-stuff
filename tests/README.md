@@ -21,7 +21,7 @@ storage failures and for pinning a random token.
 
 ## Running
 
-From `where_is_my_stuff@v2/`:
+From the project folder (`projects/where-is-my-stuff/v2/`):
 
 ```powershell
 # The fast unit layer

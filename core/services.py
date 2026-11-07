@@ -42,14 +42,23 @@ def location_score(left, right):
     return 0
 
 def validated(data):
+    # Draft data is normally written by the wizard, but it is a JSON column:
+    # older rows, a manual edit, or a future bug could leave a non-mapping here.
+    # Fail the same way as any other incomplete step instead of raising an
+    # AttributeError and returning a 500.
+    if not isinstance(data, dict):
+        raise ValidationError("Complete and check every step before submitting.")
     data = dict(data)
+    answers = data.get("answers", {})
+    if not isinstance(answers, dict):
+        raise ValidationError("Complete and check every step before submitting.")
     event_date_str = data.get("event_date")
     if event_date_str:
         if not isinstance(event_date_str, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", event_date_str):
             raise ValidationError("Invalid event date stored in the draft.")
         data["event_date"] = datetime.strptime(event_date_str, "%Y-%m-%d").strftime("%d-%m-%Y")
     result = {}
-    for form in [TypeForm(data), DetailsForm(data), LocationForm(data), MatchingForm(data.get("answers", {}), category=data.get("category", ""), selection=data.get("answers", {}))]:
+    for form in [TypeForm(data), DetailsForm(data), LocationForm(data), MatchingForm(answers, category=data.get("category", ""), selection=answers)]:
         if not form.is_valid():
             raise ValidationError("Complete and check every step before submitting.")
         if isinstance(form, MatchingForm):

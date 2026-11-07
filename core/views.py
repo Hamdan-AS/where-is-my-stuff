@@ -56,7 +56,7 @@ def dashboard(request):
         if draft:
             return redirect("draft", pk=draft.pk)
         return redirect("create")
-    reports = all_reports.filter(status="Open").order_by("-reserved", "-created_at")[:3]
+    reports = all_reports.filter(status="Open").order_by("-reserved", "-created_at", "-pk")[:3]
     match_base = Match.objects.filter(
         Q(lost__owner=request.user) | Q(found__owner=request.user)
     ).select_related("lost", "found")
@@ -83,7 +83,7 @@ def dashboard(request):
         lost__reserved=True
     ).exclude(found__reserved=True).count()
     handover_count = match_base.filter(state__in=["Handover Proposed", "Handover Scheduled"]).count()
-    returned_reports = all_reports.filter(status="Returned").order_by("-created_at")[:10]
+    returned_reports = all_reports.filter(status="Returned").order_by("-created_at", "-pk")[:10]
     return render(request, "dashboard.html", {
         "reports": reports,
         "hero": hero_match,
@@ -113,7 +113,7 @@ def report_history(request):
         reports = reports.filter(status=status_filter)
     if kind_filter in {"Lost", "Found"}:
         reports = reports.filter(kind=kind_filter)
-    page_obj = Paginator(reports.order_by("-created_at"), 10).get_page(request.GET.get("page"))
+    page_obj = Paginator(reports.order_by("-created_at", "-pk"), 10).get_page(request.GET.get("page"))
     return render(request, "reports.html", {
         "page_obj": page_obj,
         "search": search,
@@ -165,7 +165,12 @@ def wizard(request, pk=None):
     # only the initial values for the Matching step.
     initial = data.get("answers", {}) if step == 4 else data
     if step == 1 and data.get("event_date"):
-        initial = {**data, "event_date": date.fromisoformat(data["event_date"])}
+        try:
+            initial = {**data, "event_date": date.fromisoformat(data["event_date"])}
+        except (TypeError, ValueError):
+            # A tampered or legacy draft can hold a date the wizard did not
+            # write. Render the step with blank initial data rather than 500.
+            initial = {**data, "event_date": None}
     form = None
     if step < 5:
         klass = {1: TypeForm, 2: DetailsForm, 3: LocationForm, 4: MatchingForm}[step]
@@ -230,7 +235,10 @@ def wizard(request, pk=None):
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
     duplicate = Report.objects.filter(owner=request.user, status="Open", title__iexact=data.get("title", ""), kind=data.get("kind", ""), category=data.get("category", "")).exclude(pk=draft.report_id).exists() if step == 5 else False
-    display_date = date.fromisoformat(data["event_date"]).strftime("%d-%m-%Y") if data.get("event_date") else ""
+    try:
+        display_date = date.fromisoformat(data["event_date"]).strftime("%d-%m-%Y") if data.get("event_date") else ""
+    except (TypeError, ValueError):
+        display_date = ""
     has_saved_photo = bool(draft.photo or (draft.report_id and draft.report.photo))
     item_phrase = {
         "Wallet / Purse": "a wallet or purse", "Cards / IDs": "a card or ID",

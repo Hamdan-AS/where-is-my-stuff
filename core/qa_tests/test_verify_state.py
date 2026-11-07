@@ -1,8 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier, Event
+from unittest import skipUnless
 from unittest.mock import patch
 
-from django.db import connections
+from django.db import connection, connections
 from django.test import Client, TransactionTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -10,6 +11,7 @@ from django.utils import timezone
 from core.models import Draft, Report, User
 
 
+@skipUnless(connection.vendor == "postgresql", "SQLite locks the whole table during these races")
 @override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
 class IndependentStateVerification(TransactionTestCase):
     def setUp(self):

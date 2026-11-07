@@ -7,7 +7,7 @@ http://127.0.0.1:8086/.
 ## Open the project folder
 
 ```powershell
-Set-Location 'C:\Users\rizwa\Desktop\sandbox\where_is_my_stuff@v2'
+Set-Location 'C:\Users\rizwa\Desktop\sandbox\projects\where-is-my-stuff\v2'
 ```
 
 ## First-time setup
@@ -16,10 +16,16 @@ Install Python 3.10 or newer and Docker Desktop, then create the virtual
 environment and install the application dependencies:
 
 ```powershell
-py -3 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
+
+Check `python --version` first. If `python` is not on PATH, use the full
+path to a Python 3.10+ interpreter, for example
+`& "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe" -m venv .venv`.
+If you use the `py` launcher instead, run `py --list` first: it fails with
+"Unable to create process" when its default points at an uninstalled Python.
 
 If this folder does not have a .env file yet, generate local database
 credentials. This first call creates the file and exits:
@@ -86,6 +92,28 @@ Create an administrator account:
 Open the admin site at http://127.0.0.1:8086/admin/ after starting the
 server.
 
+## Run the tests
+
+The tests run against SQLite and do not need Docker. Point `DATABASE_URL` at
+SQLite for the current PowerShell session so the PostgreSQL value in `.env`
+is not used (see [tests/README.md](tests/README.md) for why):
+
+```powershell
+$env:DATABASE_URL = 'sqlite:///ignored.sqlite3'
+
+# Fast unit layer
+.\.venv\Scripts\python.exe manage.py test tests.unit -v 2
+
+# Every layered suite
+.\.venv\Scripts\python.exe manage.py test tests.unit tests.blackbox tests.behavior tests.robustness -v 2
+
+# Everything, including the existing suites
+.\.venv\Scripts\python.exe manage.py test -v 2
+```
+
+Open a new terminal, or run `Remove-Item Env:DATABASE_URL`, before starting
+the app again so it goes back to PostgreSQL.
+
 ## PostgreSQL lifecycle
 
 Stop the database while preserving its data:
@@ -123,6 +151,11 @@ Read PostgreSQL logs:
 ```powershell
 docker compose logs db
 ```
+
+If Django fails with `django.db.utils.OperationalError: connection timeout
+expired`, PostgreSQL is not running. Start Docker Desktop, then run
+`docker compose up -d --wait`. For tests, set the SQLite `DATABASE_URL`
+shown in "Run the tests" instead.
 
 Check whether the local database port is listening:
 

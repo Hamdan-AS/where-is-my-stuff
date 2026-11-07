@@ -33,10 +33,14 @@
       </div>
     </div>
     {% endif %}
+    {% if report.reserved %}
+    <p class="notice">Editing is locked while a handover is in progress.</p>
+    {% else %}
     <form method="post" action="{% url 'edit' report.pk %}" class="form-actions">
       {% csrf_token %}
       <button class="secondary">Edit report</button>
     </form>
+    {% endif %}
   {% elif report.reserved %}
     <p class="notice">Editing is locked while a handover is in progress.</p>
   {% endif %}

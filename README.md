@@ -16,6 +16,10 @@ Reports and personal items can have QR codes. Anyone scanning an active personal
 
 A match or QR scan does not prove ownership. Private answers are hidden from other users and staff, but some ask for full CNIC or card numbers, which are stored without extra encryption. Photos are optional; their location metadata is removed.
 
+User Safety:
+Users should avoid sharing unnecessary sensitive personal information.
+Always verify item ownership and coordinate handovers carefully.
+
 ## Status
 
 The app is not launched for general public use. Password reset, profile editing, notifications, and in-app help are not available yet

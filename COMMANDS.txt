@@ -1,0 +1,49 @@
+WHERE IS MY STUFF? - COMMAND REFERENCE
+======================================
+
+Run every command from the folder that contains manage.py.
+
+--------------------------------------------------------------------------------
+FIRST-TIME SETUP
+--------------------------------------------------------------------------------
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+Required once per machine. The .venv folder is not shipped in the archive.
+
+--------------------------------------------------------------------------------
+RUN LOCALLY
+--------------------------------------------------------------------------------
+powershell -ExecutionPolicy Bypass -File .\run_local.ps1
+
+The launcher applies migrations, selects an available port from 8765 through
+8774, and prints the address to open. Register an account to begin. Keep the
+window open; press Ctrl+C to stop.
+
+Manual equivalent:
+
+    .\.venv\Scripts\python.exe manage.py migrate
+    .\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8765
+
+--------------------------------------------------------------------------------
+RUN THE TESTS
+--------------------------------------------------------------------------------
+powershell -ExecutionPolicy Bypass -File .\scripts\run_tests.ps1
+
+Expected: 139 tests, OK, 3 skipped (PostgreSQL-only).
+
+run_tests.ps1 expects the Python environment at .venv\Scripts\python.exe.
+
+--------------------------------------------------------------------------------
+OPTIONAL: LOCAL POSTGRESQL
+--------------------------------------------------------------------------------
+Docker is not required for normal use or for the default test run. To execute
+the PostgreSQL-only tests:
+
+    .\.venv\Scripts\python.exe scripts\setup_local_postgres.py   # writes .env, then stops
+    docker compose up -d db
+    .\.venv\Scripts\python.exe scripts\setup_local_postgres.py   # creates role and database
+
+Then set DATABASE_URL from .env for the test process. Delete .env afterwards;
+leaving it in place would switch the app off SQLite.
